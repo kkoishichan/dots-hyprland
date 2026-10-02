@@ -73,4 +73,27 @@ assert.equal(windows[1].localY, 4, 'Monitor origin and reserved top bar are subt
 assert.equal(geometry.extent(windows, monitor).left, -904);
 assert.equal(geometry.viewport({width:3840,height:2160,scale:2,transform:1,reserved:[0,40,0,0]}).height, 1880);
 assert.equal(geometry.address('AB12'), '0xab12');
+
+// Cap the overview at complete native columns, including the actual gaps and padding.
+const halfColumns = Array.from({length: 8}, (_, i) => ({ localX: 4 + i * 1278, layoutWidth: 1274 }));
+const overviewCap = geometry.overviewWidth(halfColumns, 2560, 0.18, 1100, 64);
+assert(Math.abs(overviewCap - 984.88) < 1e-8, 'The HDMI cap contains four complete columns');
+assert.equal(geometry.overviewWidth(halfColumns.slice(0, 4), 2560, 0.18, 1100, 64), overviewCap,
+    'An exactly full workspace uses the same cap as an overflowing workspace');
+assert.equal(geometry.overviewWidth(halfColumns.slice(0, 2), 2560, 0.18, 1100, 64), overviewCap,
+    'Few windows do not collapse the maximum width');
+assert.equal(geometry.overviewWidth([], 2560, 0.18, 1100, 64), overviewCap);
+assert.equal(geometry.overviewWidth(halfColumns, 2560, 0.18, overviewCap, 64), overviewCap,
+    'A boundary-sized cap must not lose a column through floating-point rounding');
+assert.equal(geometry.overviewWidth(halfColumns.concat({ localX: 4, layoutWidth: 600 },
+    { localX: 0, layoutWidth: 10000, floating: true }), 2560, 0.18, 1100, 64), overviewCap,
+    'Stacked and floating windows do not count as extra columns');
+const mixedColumns = [846, 1700, 1274, 846, 1700].reduce((columns, width) => {
+    const previous = columns[columns.length - 1];
+    columns.push({ localX: previous ? previous.localX + previous.layoutWidth + 4 : 4, layoutWidth: width });
+    return columns;
+}, []);
+assert(Math.abs(geometry.overviewWidth(mixedColumns, 2560, 0.18, 1100, 64) - 907.48) < 1e-8,
+    'Different column widths retain their proportions and the fifth column is excluded');
 console.log('Dynamic workspace lifecycle, persistence, monitor migration and offscreen geometry: passed');
+console.log('Overview width, complete columns, stacking and mixed widths: passed');

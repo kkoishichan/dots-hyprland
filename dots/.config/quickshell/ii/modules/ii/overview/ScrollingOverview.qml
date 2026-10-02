@@ -9,6 +9,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.widgets
+import "../../../services/ScrollingGeometry.js" as Geometry
 
 FocusScope {
     id: root
@@ -20,6 +21,7 @@ FocusScope {
     readonly property real laneGap: 5
     readonly property real windowRadius: Appearance.rounding.small
     readonly property real windowMargin: 4
+    readonly property real tapePadding: 8
     readonly property real workspaceRadius: windowRadius + windowMargin
     readonly property real framePadding: 10
     readonly property real verticalPadding: (Appearance.sizes.elevationMargin + framePadding) * 2
@@ -29,12 +31,18 @@ FocusScope {
         (availableHeight - verticalPadding - laneGap * 2) / 3 - windowMargin * 2)))
     readonly property real previewScale: previewHeight / viewport.height
     readonly property real laneHeight: previewHeight + windowMargin * 2
+    readonly property real maximumWidth: Math.max(1, Math.min(1100, viewport.width - 100))
+    readonly property var workspaceWidths: workspaceIds.reduce((widths, id) => {
+        widths[id] = Geometry.overviewWidth(ScrollingLayout.windowsForWorkspace(monitorName, id),
+            viewport.width, previewScale, maximumWidth, verticalPadding + (windowMargin + tapePadding) * 2);
+        return widths;
+    }, {})
     property int selectedWorkspace: activeId
     property string selectedAddress: ""
     property int dropWorkspace: -1
     signal searchRequested(string text)
 
-    implicitWidth: Math.min(1100, viewport.width - 100)
+    implicitWidth: workspaceIds.length ? Math.max(...Object.values(workspaceWidths)) : maximumWidth
     implicitHeight: verticalPadding + visibleLaneCount * laneHeight + Math.max(0, visibleLaneCount - 1) * laneGap
 
     function selectWorkspace(id) {
@@ -148,10 +156,11 @@ FocusScope {
                         readonly property int workspaceId: modelData.id
                         readonly property var windows: ScrollingLayout.windowsForWorkspace(root.monitorName, workspaceId)
                         readonly property var extent: ScrollingLayout.extent(root.monitorName, windows)
-                        readonly property real tapeWidth: (extent.right - extent.left) * root.previewScale + 16
+                        readonly property real tapeWidth: (extent.right - extent.left) * root.previewScale
                         readonly property bool selected: root.selectedWorkspace === workspaceId
                         readonly property bool receivingDrop: root.dropWorkspace === workspaceId
-                        width: laneColumn.width
+                        width: Math.max(1, (root.workspaceWidths[workspaceId] ?? root.implicitWidth) - root.verticalPadding)
+                        x: (laneColumn.width - width) / 2
                         height: root.laneHeight
                         radius: root.workspaceRadius
                         color: receivingDrop ? ColorUtils.mix(Appearance.colors.colSurfaceContainerLow, Appearance.colors.colLayer1Hover, 0.1)
@@ -165,7 +174,12 @@ FocusScope {
                         Flickable {
                             id: tape
                             objectName: "workspaceTape"
-                            anchors { fill: parent; margins: root.windowMargin }
+                            anchors {
+                                fill: parent
+                                margins: root.windowMargin
+                                leftMargin: root.windowMargin + root.tapePadding
+                                rightMargin: root.windowMargin + root.tapePadding
+                            }
                             clip: true
                             contentWidth: Math.max(width, lane.tapeWidth)
                             contentHeight: height
@@ -180,7 +194,7 @@ FocusScope {
                                     antialiasing: true
                                 }
                             }
-                            readonly property real inset: Math.max(8, (width - lane.tapeWidth) / 2 + 8)
+                            readonly property real inset: Math.max(0, (width - lane.tapeWidth) / 2)
                             function centerViewport() {
                                 const center = (-lane.extent.left + root.viewport.width / 2) * root.previewScale + inset;
                                 contentX = Math.max(0, Math.min(contentWidth - width, center - width / 2));
@@ -190,8 +204,9 @@ FocusScope {
                                 if (!selected || !lane.selected) return;
                                 const left = (selected.localX - lane.extent.left) * root.previewScale + inset;
                                 const right = left + selected.layoutWidth * root.previewScale;
-                                if (left < contentX) contentX = left - 8;
-                                else if (right > contentX + width) contentX = right - width + 8;
+                                const edgePadding = 4 * root.previewScale;
+                                if (left < contentX + edgePadding) contentX = left - edgePadding;
+                                else if (right > contentX + width - edgePadding) contentX = right - width + edgePadding;
                                 contentX = Math.max(0, Math.min(contentWidth - width, contentX));
                             }
                             Component.onCompleted: Qt.callLater(centerViewport)

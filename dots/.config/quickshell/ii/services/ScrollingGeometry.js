@@ -51,3 +51,37 @@ function extent(windows, monitor) {
         right: windows.reduce((x, w) => Math.max(x, w.localX + w.layoutWidth + 4), view.width)
     };
 }
+
+function overviewWidth(windows, viewportWidth, scale, maximumWidth, padding) {
+    const columns = [];
+    windows.filter(w => !w.floating).sort((a, b) => a.localX - b.localX).forEach(w => {
+        const previous = columns[columns.length - 1];
+        const right = w.localX + w.layoutWidth;
+        // Stacked windows and grouped tabs share a column, including narrower clients.
+        if (previous && w.localX < previous.right) previous.right = Math.max(previous.right, right);
+        else columns.push({ left: w.localX, right });
+    });
+
+    // Fixed frame/tape padding plus Geometry.extent's four-pixel edges.
+    const chrome = padding + 8 * scale;
+    const budget = Math.max(1, (maximumWidth - chrome) / scale);
+    // Empty workspaces use the configured half-screen column and current 2/4 gaps.
+    const referenceWidth = columns.length ? columns[0].right - columns[0].left
+        : Math.max(1, viewportWidth / 2 - 6);
+    const gaps = columns.slice(1).map((c, i) => c.left - columns[i].right);
+    const gap = gaps.length ? Math.min(...gaps) : 4;
+    let span = 0;
+    let count = 0;
+    for (const column of columns) {
+        const next = column.right - columns[0].left;
+        if (next > budget + 1e-7) break;
+        span = next;
+        count++;
+    }
+    if (!columns.length) span = Math.min(referenceWidth, budget);
+    if (count === columns.length) {
+        // Keep a stable maximum even when the workspace has only a few windows.
+        span += Math.floor((budget - span + 1e-7) / (referenceWidth + gap)) * (referenceWidth + gap);
+    }
+    return Math.min(maximumWidth, chrome + Math.max(1, span) * scale);
+}
