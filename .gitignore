@@ -15,3 +15,15 @@ __pycache__/
 
 # Emacs auto backup file
 *~
+
+# Local desktop state and migration artifacts
+/.local-backups/
+/validation/
+/backup-*/
+/runtime-check/
+/dots/.config/illogical-impulse/config.json
+/dots/.config/hypr/monitors.lua
+/dots/.config/hypr/monitors.conf
+/dots/.config/hypr/workspaces.lua
+/dots/.config/hypr/workspaces.conf
+*.new

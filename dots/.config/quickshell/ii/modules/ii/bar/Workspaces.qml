@@ -18,11 +18,14 @@ ButtonMouseArea {
     WorkspaceModel {
         id: wsModel
         monitor: root.monitor
+        monitorName: root.QsWindow.window?.screen?.name ?? root.monitor?.name ?? ""
     }
 
     property bool vertical: Config.options.bar.vertical
     property bool superPressAndHeld: false // Relevant modifications at bottom of file
 
+    // BarContent still reads this value when sizing the workspace group.
+    property int widgetPadding: 4
     property real workspaceButtonWidth: 26
     property real activeWorkspaceMargin: 2
     property real activeWorkspaceSize: workspaceButtonWidth - activeWorkspaceMargin * 2
@@ -30,7 +33,7 @@ ButtonMouseArea {
     property real workspaceIconSizeShrinked: workspaceButtonWidth * 0.55
     property real workspaceIconOpacityShrinked: 1
     property real workspaceIconMarginShrinked: -4
-    property int workspaceIndexInGroup: (monitor?.activeWorkspace?.id - 1) % wsModel.shownCount
+    property int workspaceIndexInGroup: (wsModel.activeWorkspace - 1) % wsModel.shownCount
     property real specialTextSize: workspaceButtonWidth * 0.5
 
     Layout.alignment: vertical ? Qt.AlignHCenter : Qt.AlignVCenter

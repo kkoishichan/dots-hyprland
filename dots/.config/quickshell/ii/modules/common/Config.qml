@@ -108,11 +108,11 @@ Singleton {
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
                 property JsonObject fonts: JsonObject {
-                    property string main: "Google Sans Flex"
-                    property string numbers: "Google Sans Flex"
-                    property string title: "Google Sans Flex"
-                    property string iconNerd: "JetBrains Mono NF"
-                    property string monospace: "JetBrains Mono NF"
+                    property string main: "Noto Sans"
+                    property string numbers: "Noto Sans"
+                    property string title: "Noto Sans"
+                    property string iconNerd: "JetBrainsMono Nerd Font"
+                    property string monospace: "JetBrainsMono Nerd Font"
                     property string reading: "Readex Pro"
                     property string expressive: "Space Grotesk"
                 }
@@ -151,13 +151,13 @@ Singleton {
 
             property JsonObject apps: JsonObject {
                 property string bluetooth: "kcmshell6 kcm_bluetooth"
-                property string changePassword: "kitty -1 --hold=yes fish -i -c 'passwd'"
+                property string changePassword: "kitty -1 --hold=yes zsh -ic 'passwd'"
                 property string network: "kcmshell6 kcm_networkmanagement"
                 property string manageUser: "kcmshell6 kcm_users"
                 property string networkEthernet: "kcmshell6 kcm_networkmanagement"
                 property string taskManager: "plasma-systemmonitor --page-name Processes"
                 property string terminal: "kitty -1" // This is only for shell actions
-                property string update: "kitty -1 --hold=yes fish -i -c 'pkexec pacman -Syu'"
+                property string update: "kitty -1 --hold=yes zsh -ic 'pkexec pacman -Syu'"
                 property string volumeMixer: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
             }
 
@@ -191,7 +191,7 @@ Singleton {
                             property bool animateChange: true
                             property bool vertical: false
                             property JsonObject font: JsonObject {
-                                property string family: "Google Sans Flex"
+                                property string family: "Noto Sans"
                                 property real weight: 350
                                 property real width: 100
                                 property real size: 90

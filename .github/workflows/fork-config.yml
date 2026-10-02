@@ -1,0 +1,27 @@
+name: Fork configuration checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dynamic workspaces and scrolling geometry
+        run: node tests/scrolling-workspaces.cjs
+      - name: Configuration capture, deployment and backup
+        run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Whitespace and conflict markers
+        run: git diff --check HEAD^ HEAD

@@ -21,6 +21,7 @@ Item { // Wrapper
 
     property string searchingText: LauncherSearch.query
     property bool showResults: searchingText != ""
+    property var overviewNavigation: null
     implicitWidth: searchWidgetContent.implicitWidth + Appearance.sizes.elevationMargin * 2
     implicitHeight: searchWidgetContent.implicitHeight + searchBar.verticalPadding * 2 + Appearance.sizes.elevationMargin * 2
 
@@ -139,6 +140,7 @@ Item { // Wrapper
 
             SearchBar {
                 id: searchBar
+                overviewNavigation: root.overviewNavigation
                 property real verticalPadding: 4
                 Layout.fillWidth: true
                 Layout.leftMargin: 10

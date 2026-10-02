@@ -24,22 +24,14 @@ Singleton {
 
     Process {
         id: checkConflictsProc
-        command: ["bash", "-c", `echo "$(pidof kded6);$(pidof mako dunst)"`]
+        // Quickshell can use kded6's StatusNotifierWatcher. Its presence is not a conflict.
+        command: ["pidof", "mako", "dunst"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const output = this.text;
-                const conflictingTrays = output.split(";")[0].trim().length > 0;
-                const conflictingNotifications = output.split(";")[1].trim().length > 0;
-                var openDialog = false;
-                if (conflictingTrays) {
-                    if (!Config.options.conflictKiller.autoKillTrays) openDialog = true;
-                    else Quickshell.execDetached(["killall", "kded6"])
-                }
-                if (conflictingNotifications) {
-                    if (!Config.options.conflictKiller.autoKillNotificationDaemons) openDialog = true;
-                    else Quickshell.execDetached(["killall", "mako", "dunst"])
-                }
-                if (openDialog) {
+                if (this.text.trim().length === 0) return;
+                if (Config.options.conflictKiller.autoKillNotificationDaemons) {
+                    Quickshell.execDetached(["killall", "mako", "dunst"])
+                } else {
                     Quickshell.execDetached(["qs", "-p", root.killDialogQmlPath])
                 }
             }

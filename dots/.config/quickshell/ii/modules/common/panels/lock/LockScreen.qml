@@ -100,6 +100,11 @@ Scope {
         GlobalStates.screenLocked = true;
     }
 
+    function resumeFromSleep() {
+        lockContext.sleepInProgress = false;
+        lockContext.shouldReFocus();
+    }
+
     IpcHandler {
         target: "lock"
 
@@ -108,6 +113,12 @@ Scope {
         }
         function focus(): void {
             lockContext.shouldReFocus();
+        }
+        function prepareForSleep(): void {
+            lockContext.sleepInProgress = true;
+        }
+        function resumeFromSleep(): void {
+            root.resumeFromSleep();
         }
     }
 
@@ -126,7 +137,7 @@ Scope {
             + "decides to keyboard-unfocus the lock screen"
 
         onPressed: {
-            lockContext.shouldReFocus();
+            root.resumeFromSleep();
         }
     }
 

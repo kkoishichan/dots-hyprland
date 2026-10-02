@@ -10,11 +10,8 @@ import Quickshell.Hyprland
 Item {
     id: root
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(root.QsWindow.window?.screen)
-    readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
-
-    property string activeWindowAddress: `0x${activeWindow?.HyprlandToplevel?.address}`
-    property bool focusingThisMonitor: HyprlandData.activeWorkspace?.monitor == monitor?.name
-    property var biggestWindow: HyprlandData.biggestWindowForWorkspace(HyprlandData.monitors[root.monitor?.id]?.activeWorkspace.id)
+    readonly property string monitorName: root.QsWindow.window?.screen?.name ?? ""
+    readonly property var activeWindow: ScrollingLayout.focusedWindow(monitorName, monitor?.activeWorkspace?.id ?? 0)
 
     implicitWidth: colLayout.implicitWidth
 
@@ -31,9 +28,7 @@ Item {
             font.pixelSize: Appearance.font.pixelSize.smaller
             color: Appearance.colors.colSubtext
             elide: Text.ElideRight
-            text: root.focusingThisMonitor && root.activeWindow?.activated && root.biggestWindow ? 
-                root.activeWindow?.appId :
-                (root.biggestWindow?.class) ?? Translation.tr("Desktop")
+            text: root.activeWindow?.class ?? Translation.tr("Desktop")
 
         }
 
@@ -42,9 +37,7 @@ Item {
             font.pixelSize: Appearance.font.pixelSize.small
             color: Appearance.colors.colOnLayer0
             elide: Text.ElideRight
-            text: root.focusingThisMonitor && root.activeWindow?.activated && root.biggestWindow ? 
-                root.activeWindow?.title :
-                (root.biggestWindow?.title) ?? `${Translation.tr("Workspace")} ${monitor?.activeWorkspace?.id ?? 1}`
+            text: root.activeWindow?.title ?? `${Translation.tr("Workspace")} ${ScrollingLayout.position(root.monitorName, monitor?.activeWorkspace?.id ?? 0)}`
         }
 
     }

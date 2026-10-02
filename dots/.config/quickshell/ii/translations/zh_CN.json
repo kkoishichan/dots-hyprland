@@ -720,5 +720,15 @@
   "Move left": "左移",
   "Pin to Start": "固定到“开始”屏幕",
   "Pin": "固定",
-  "Unpin": "取消固定"
+  "Unpin": "取消固定",
+  "Previous column": "上一列",
+  "Next column": "下一列",
+  "Empty workspace": "空工作区",
+  "Offscreen": "屏幕外",
+  "Floating": "浮动窗口",
+  "Insert workspace above": "在上方插入工作区",
+  "Move workspace up": "上移工作区",
+  "Move workspace down": "下移工作区",
+  "New workspace": "新工作区",
+  "Click or drop a window here": "点击进入，或将窗口拖到这里"
 }

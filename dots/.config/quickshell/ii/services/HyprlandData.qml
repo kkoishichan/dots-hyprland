@@ -21,6 +21,7 @@ Singleton {
     property var activeWorkspace: null
     property var monitors: []
     property var layers: ({})
+    property var closedWindowAddresses: ({})
 
     // Convenient stuff
 
@@ -46,21 +47,29 @@ Singleton {
 
     // Internals
 
+    function setWindowList(windows) {
+        const byAddress = {};
+        for (const win of windows) byAddress[win.address] = win;
+        root.windowByAddress = byAddress;
+        root.addresses = windows.map(win => win.address);
+        root.windowList = windows;
+    }
+
     function updateWindowList() {
-        getClients.running = true;
+        getClients.refresh();
     }
 
     function updateLayers() {
-        getLayers.running = true;
+        getLayers.refresh();
     }
 
     function updateMonitors() {
-        getMonitors.running = true;
+        getMonitors.refresh();
     }
 
     function updateWorkspaces() {
-        getWorkspaces.running = true;
-        getActiveWorkspace.running = true;
+        getWorkspaces.refresh();
+        getActiveWorkspace.refresh();
     }
 
     function updateAll() {
@@ -87,31 +96,83 @@ Singleton {
         target: Hyprland
 
         function onRawEvent(event) {
-            // console.log("Hyprland raw event:", event.name);
             if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
-            updateAll()
+            if (event.name === "closewindow" || event.name === "openwindow") {
+                const rawAddress = event.data.split(",")[0].trim();
+                const address = rawAddress.startsWith("0x") ? rawAddress : `0x${rawAddress}`;
+                const closed = Object.assign({}, root.closedWindowAddresses);
+                if (event.name === "closewindow") {
+                    // Do not wait for hyprctl to remove a window that is already gone.
+                    closed[address] = true;
+                    root.closedWindowAddresses = closed;
+                    root.setWindowList(root.windowList.filter(win => win.address !== address));
+                } else {
+                    // Hyprland may reuse an address for a newly opened window.
+                    delete closed[address];
+                    root.closedWindowAddresses = closed;
+                }
+                root.updateWindowList();
+            }
+            // Bound the wait even when events keep arriving during an animation.
+            if (!eventRefresh.running) eventRefresh.start();
         }
     }
 
-    Process {
+    // Coalesce event bursts without postponing updates on every new event.
+    Timer {
+        id: eventRefresh
+        interval: 50
+        onTriggered: root.updateAll()
+    }
+
+    // Recover stale snapshots after missed IPC events or monitor/suspend changes.
+    Timer {
+        interval: 5000
+        running: true
+        repeat: true
+        onTriggered: {
+            root.updateWindowList();
+            root.updateMonitors();
+            root.updateWorkspaces();
+        }
+    }
+
+    component HyprctlQuery: Process {
+        property bool refreshPending: false
+
+        function refresh() {
+            if (running) refreshPending = true;
+            else running = true;
+        }
+
+        onExited: {
+            if (refreshPending) {
+                refreshPending = false;
+                running = true;
+            }
+        }
+    }
+
+    HyprctlQuery {
         id: getClients
         command: ["hyprctl", "clients", "-j"]
         stdout: StdioCollector {
             id: clientsCollector
             onStreamFinished: {
-                root.windowList = JSON.parse(clientsCollector.text)
-                let tempWinByAddress = {};
-                for (var i = 0; i < root.windowList.length; ++i) {
-                    var win = root.windowList[i];
-                    tempWinByAddress[win.address] = win;
+                const windows = JSON.parse(clientsCollector.text);
+                const closed = {};
+                for (const win of windows) {
+                    if (root.closedWindowAddresses[win.address]) closed[win.address] = true;
                 }
-                root.windowByAddress = tempWinByAddress;
-                root.addresses = root.windowList.map(win => win.address);
+                // An in-flight query can finish with a pre-close snapshot. Keep
+                // suppressing that address until a later query confirms removal.
+                root.closedWindowAddresses = closed;
+                root.setWindowList(windows.filter(win => !closed[win.address]));
             }
         }
     }
 
-    Process {
+    HyprctlQuery {
         id: getMonitors
         command: ["hyprctl", "monitors", "-j"]
         stdout: StdioCollector {
@@ -122,7 +183,7 @@ Singleton {
         }
     }
 
-    Process {
+    HyprctlQuery {
         id: getLayers
         command: ["hyprctl", "layers", "-j"]
         stdout: StdioCollector {
@@ -133,7 +194,7 @@ Singleton {
         }
     }
 
-    Process {
+    HyprctlQuery {
         id: getWorkspaces
         command: ["hyprctl", "workspaces", "-j"]
         stdout: StdioCollector {
@@ -141,7 +202,7 @@ Singleton {
             onStreamFinished: {
                 var rawWorkspaces = JSON.parse(workspacesCollector.text);
                 // Filter out invalid workspace ids (e.g. lock-screen temp workspace 2147483647 - N)
-                root.workspaces = rawWorkspaces.filter(ws => ws.id >= 1 && ws.id <= 100);
+                root.workspaces = rawWorkspaces.filter(ws => ws.id >= 1 && ws.id < 1000000);
                 let tempWorkspaceById = {};
                 for (var i = 0; i < root.workspaces.length; ++i) {
                     var ws = root.workspaces[i];
@@ -153,7 +214,7 @@ Singleton {
         }
     }
 
-    Process {
+    HyprctlQuery {
         id: getActiveWorkspace
         command: ["hyprctl", "activeworkspace", "-j"]
         stdout: StdioCollector {

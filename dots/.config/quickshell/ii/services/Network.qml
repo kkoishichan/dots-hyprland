@@ -31,6 +31,11 @@ Singleton {
         return b.strength - a.strength;
     })
     property string wifiStatus: "disconnected"
+    // NetworkManager's connectivity probe can report "limited" even while the
+    // connection works (for example behind a VPN, proxy, or captive network).
+    // Keep it separate from the actual Wi-Fi device state so the icon reflects
+    // whether Wi-Fi is connected instead of whether that probe succeeded.
+    property string connectivity: "unknown"
 
     property string networkName: ""
     property int networkStrength
@@ -199,11 +204,6 @@ Singleton {
                     else if (line.includes("connected")) {
                         hasWifi = true;
                         wifiStatus = "connected"
-
-                        if (connectivity === "limited") {
-                            hasWifi = false;
-                            wifiStatus = "limited"
-                        }
                     }
                     else if (line.includes("connecting")) {
                         wifiStatus = "connecting"
@@ -214,6 +214,7 @@ Singleton {
                 }
             });
             root.wifiStatus = wifiStatus;
+            root.connectivity = connectivity;
             root.ethernet = hasEthernet;
             root.wifi = hasWifi;
         }

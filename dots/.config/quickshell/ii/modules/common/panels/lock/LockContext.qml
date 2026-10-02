@@ -20,6 +20,7 @@ Scope {
     property bool unlockInProgress: false
     property bool showFailure: false
     property bool fingerprintsConfigured: false
+    property bool sleepInProgress: false
     property var targetAction: LockContext.ActionEnum.Unlock
     property bool alsoInhibitIdle: false
 
@@ -35,19 +36,30 @@ Scope {
         passwordClearTimer.restart();
     }
 
-    function reset() {
+    function reset(stopFingerprint = true) {
         root.resetTargetAction();
         root.clearText();
         root.unlockInProgress = false;
-        stopFingerPam();
+        if (stopFingerprint) {
+            fingerprintRetryTimer.stop();
+            stopFingerPam();
+        }
     }
 
     Timer {
         id: passwordClearTimer
         interval: 10000
         onTriggered: {
-            root.reset();
+            // Clearing stale password input must not stop fingerprint scanning.
+            root.reset(false);
         }
+    }
+
+    Timer {
+        id: fingerprintRetryTimer
+        interval: 2000
+        repeat: false
+        onTriggered: root.tryFingerUnlock()
     }
 
     onCurrentTextChanged: {
@@ -66,8 +78,26 @@ Scope {
     }
 
     function tryFingerUnlock() {
-        if (root.fingerprintsConfigured) {
+        if (!root.sleepInProgress && GlobalStates.screenLocked && root.fingerprintsConfigured
+                && !fingerPam.active) {
             fingerPam.start();
+        }
+    }
+
+    onSleepInProgressChanged: {
+        if (root.sleepInProgress) {
+            // fprintd must stop before sleep.target. Do not activate it again
+            // while systemd is stopping it, including from a pending PAM retry.
+            fingerprintRetryTimer.stop();
+            stopFingerPam();
+        } else if (GlobalStates.screenLocked && root.fingerprintsConfigured) {
+            fingerprintRetryTimer.restart();
+        }
+    }
+
+    onFingerprintsConfiguredChanged: {
+        if (!root.sleepInProgress && root.fingerprintsConfigured && GlobalStates.screenLocked) {
+            fingerprintRetryTimer.restart();
         }
     }
 
@@ -98,6 +128,11 @@ Scope {
     PamContext {
         id: pam
 
+        // Keep password authentication separate from /etc/pam.d/login, which
+        // also invokes pam_fprintd on this machine.
+        configDirectory: "pam"
+        config: "password.conf"
+
         // pam_unix will ask for a response for the password prompt
         onPamMessage: {
             if (this.responseRequired) {
@@ -126,11 +161,14 @@ Scope {
         config: "fprintd.conf"
 
         onCompleted: result => {
-            if (result == PamResult.Success) {
+            if (root.sleepInProgress) return;
+            if (result == PamResult.Success && GlobalStates.screenLocked) {
+                fingerprintRetryTimer.stop();
                 root.unlocked(root.targetAction);
                 stopFingerPam();
-            } else if (result == PamResult.Error) { // if timeout or etc..
-                tryFingerUnlock()
+            } else if (GlobalStates.screenLocked) {
+                // Retry after timeouts, mismatches, max tries, and device errors.
+                fingerprintRetryTimer.restart();
             }
         }
     }
