@@ -8,6 +8,7 @@
 .config/hypr/custom/variables.lua
 .config/hypr/hypridle.conf
 .config/hypr/hyprland/keybinds.lua
+.config/kitty/kitty.conf
 .config/quickshell/ii/GlobalStates.qml
 .config/quickshell/ii/ReloadPopup.qml
 .config/quickshell/ii/killDialog.qml

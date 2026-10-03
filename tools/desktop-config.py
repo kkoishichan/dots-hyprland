@@ -47,7 +47,7 @@ def managed_files(repo):
         raise ValueError("Managed files must be nonempty and unique")
     for relative in paths:
         checked_path(repo / "dots", relative)
-        if not relative.startswith((".config/hypr/", ".config/quickshell/ii/")):
+        if relative != ".config/kitty/kitty.conf" and not relative.startswith((".config/hypr/", ".config/quickshell/ii/")):
             raise ValueError(f"Unsupported desktop path: {relative}")
     return paths
 

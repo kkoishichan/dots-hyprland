@@ -17,8 +17,9 @@ class DesktopConfigTest(unittest.TestCase):
         self.repo = self.root / "repo"
         self.home = self.root / "home"
         self.relative = ".config/quickshell/ii/GlobalStates.qml"
+        self.kitty_relative = ".config/kitty/kitty.conf"
         (self.repo / "config").mkdir(parents=True)
-        (self.repo / "config/managed-files.txt").write_text(self.relative + "\n")
+        (self.repo / "config/managed-files.txt").write_text(self.relative + "\n" + self.kitty_relative + "\n")
         (self.repo / "config/scrolling-profile.json").write_text(json.dumps({"bar": {"verbose": True}}))
         source = self.repo / "dots" / self.relative
         source.parent.mkdir(parents=True)
@@ -26,6 +27,12 @@ class DesktopConfigTest(unittest.TestCase):
         target = self.home / self.relative
         target.parent.mkdir(parents=True)
         target.write_text("live version\n")
+        kitty_source = self.repo / "dots" / self.kitty_relative
+        kitty_source.parent.mkdir(parents=True)
+        kitty_source.write_text("remember_window_size no\n")
+        kitty_target = self.home / self.kitty_relative
+        kitty_target.parent.mkdir(parents=True)
+        kitty_target.write_text("remember_window_size yes\n")
         self.settings = self.home / ".config/illogical-impulse/config.json"
         self.settings.parent.mkdir(parents=True)
         self.settings.write_text(json.dumps({"bar": {"verbose": False, "bottom": True},
@@ -43,6 +50,8 @@ class DesktopConfigTest(unittest.TestCase):
         self.assertEqual(settings["ai"]["apiKey"], "private-token")
         backup = next((self.home / ".local/state/dots-hyprland/backups").iterdir())
         self.assertEqual((backup / self.relative).read_text(), "live version\n")
+        self.assertEqual((backup / self.kitty_relative).read_text(), "remember_window_size yes\n")
+        self.assertEqual((self.home / self.kitty_relative).read_text(), "remember_window_size no\n")
         self.assertFalse(json.loads((backup / ".config/illogical-impulse/config.json").read_text())["bar"]["verbose"])
         self.assertEqual(backup.stat().st_mode & 0o777, 0o700)
         self.assertNotIn("private-token", result.stdout + result.stderr)
@@ -54,6 +63,7 @@ class DesktopConfigTest(unittest.TestCase):
         result = self.run_command("capture")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.repo / "dots" / self.relative).read_text(), "live version\n")
+        self.assertEqual((self.repo / "dots" / self.kitty_relative).read_text(), "remember_window_size yes\n")
         profile = json.loads((self.repo / "config/scrolling-profile.json").read_text())
         self.assertEqual(profile, {"bar": {"verbose": False}})
         self.assertNotIn("private-token", json.dumps(profile) + result.stdout + result.stderr)
