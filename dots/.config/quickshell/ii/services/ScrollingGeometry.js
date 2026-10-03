@@ -66,7 +66,9 @@ function overviewWidth(windows, viewportWidth, scale, maximumWidth, padding) {
     const chrome = padding + 8 * scale;
     const budget = Math.max(1, (maximumWidth - chrome) / scale);
     // Empty workspaces use the configured half-screen column and current 2/4 gaps.
-    const referenceWidth = columns.length ? columns[0].right - columns[0].left
+    // Fill spare space with the narrowest existing column so mixed widths do not
+    // lose a half-screen slot when the first column is a full-screen window.
+    const referenceWidth = columns.length ? Math.min(...columns.map(c => c.right - c.left))
         : Math.max(1, viewportWidth / 2 - 6);
     const gaps = columns.slice(1).map((c, i) => c.left - columns[i].right);
     const gap = gaps.length ? Math.min(...gaps) : 4;

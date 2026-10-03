@@ -88,11 +88,23 @@ assert.equal(geometry.overviewWidth(halfColumns, 2560, 0.18, overviewCap, 64), o
 assert.equal(geometry.overviewWidth(halfColumns.concat({ localX: 4, layoutWidth: 600 },
     { localX: 0, layoutWidth: 10000, floating: true }), 2560, 0.18, 1100, 64), overviewCap,
     'Stacked and floating windows do not count as extra columns');
-const mixedColumns = [846, 1700, 1274, 846, 1700].reduce((columns, width) => {
-    const previous = columns[columns.length - 1];
-    columns.push({ localX: previous ? previous.localX + previous.layoutWidth + 4 : 4, layoutWidth: width });
-    return columns;
-}, []);
+function columnsWithWidths(widths) {
+    return widths.reduce((columns, width) => {
+        const previous = columns[columns.length - 1];
+        columns.push({ localX: previous ? previous.localX + previous.layoutWidth + 4 : 4, layoutWidth: width });
+        return columns;
+    }, []);
+}
+for (const [viewportWidth, halfWidth, slots] of [[1920, 954, 6], [2560, 1274, 4]]) {
+    const fullWidth = halfWidth * 2 + 4;
+    const expected = geometry.overviewWidth(columnsWithWidths(Array(slots).fill(halfWidth)),
+        viewportWidth, 0.18, 1100, 64);
+    for (const widths of [[fullWidth, halfWidth], [halfWidth, fullWidth]]) {
+        assert(Math.abs(geometry.overviewWidth(columnsWithWidths(widths), viewportWidth, 0.18, 1100, 64)
+            - expected) < 1e-8, `${viewportWidth}px: full and half columns retain the ${slots}-half-column cap in either order`);
+    }
+}
+const mixedColumns = columnsWithWidths([846, 1700, 1274, 846, 1700]);
 assert(Math.abs(geometry.overviewWidth(mixedColumns, 2560, 0.18, 1100, 64) - 907.48) < 1e-8,
     'Different column widths retain their proportions and the fifth column is excluded');
 console.log('Dynamic workspace lifecycle, persistence, monitor migration and offscreen geometry: passed');
