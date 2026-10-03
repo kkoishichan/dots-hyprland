@@ -52,7 +52,14 @@ function extent(windows, monitor) {
     };
 }
 
-function overviewWidth(windows, viewportWidth, scale, maximumWidth, padding) {
+function overviewWidth(windows, viewportWidth, scale, padding) {
+    // Use the monitor's logical width. A larger monitor gets a larger budget,
+    // while fractional scaling and output rotation are handled by viewport().
+    const maximumWidth = Math.max(1, viewportWidth * 0.6);
+    const chrome = padding + 8 * scale; // Fixed padding and extent's four-pixel edges.
+    const budget = (maximumWidth - chrome) / scale;
+    if (budget <= 0) return maximumWidth;
+
     const columns = [];
     windows.filter(w => !w.floating).sort((a, b) => a.localX - b.localX).forEach(w => {
         const previous = columns[columns.length - 1];
@@ -62,28 +69,32 @@ function overviewWidth(windows, viewportWidth, scale, maximumWidth, padding) {
         else columns.push({ left: w.localX, right });
     });
 
-    // Fixed frame/tape padding plus Geometry.extent's four-pixel edges.
-    const chrome = padding + 8 * scale;
-    const budget = Math.max(1, (maximumWidth - chrome) / scale);
-    // Empty workspaces use the configured half-screen column and current 2/4 gaps.
-    // Fill spare space with the narrowest existing column so mixed widths do not
-    // lose a half-screen slot when the first column is a full-screen window.
-    const referenceWidth = columns.length ? Math.min(...columns.map(c => c.right - c.left))
-        : Math.max(1, viewportWidth / 2 - 6);
-    const gaps = columns.slice(1).map((c, i) => c.left - columns[i].right);
-    const gap = gaps.length ? Math.min(...gaps) : 4;
-    let span = 0;
-    let count = 0;
-    for (const column of columns) {
-        const next = column.right - columns[0].left;
-        if (next > budget + 1e-7) break;
-        span = next;
-        count++;
+    let span;
+    if (!columns.length) {
+        // Empty/floating-only rows keep the default half-screen capacity.
+        const width = Math.max(1, viewportWidth / 2 - 6);
+        const count = Math.floor((budget + 4 + 1e-7) / (width + 4));
+        span = count * (width + 4) - 4;
+    } else {
+        const left = columns[0].left;
+        const occupied = columns[columns.length - 1].right - left;
+        if (occupied <= budget + 1e-7) {
+            // Keep spare slots when all windows fit. The narrowest whole column
+            // is independent of focus/order and handles full + half widths.
+            const width = Math.min(...columns.map(c => c.right - c.left));
+            const gaps = columns.slice(1).map((c, i) => c.left - columns[i].right);
+            const gap = gaps.length ? Math.min(...gaps) : 4;
+            span = occupied + Math.floor((budget - occupied + 1e-7) / (width + gap)) * (width + gap);
+        } else {
+            // Overflowing rows end at the last complete column within budget.
+            span = 0;
+            for (const column of columns) {
+                const next = column.right - left;
+                if (next > budget + 1e-7) break;
+                span = next;
+            }
+        }
     }
-    if (!columns.length) span = Math.min(referenceWidth, budget);
-    if (count === columns.length) {
-        // Keep a stable maximum even when the workspace has only a few windows.
-        span += Math.floor((budget - span + 1e-7) / (referenceWidth + gap)) * (referenceWidth + gap);
-    }
-    return Math.min(maximumWidth, chrome + Math.max(1, span) * scale);
+    // An oversized first column stays scrollable in the full available width.
+    return span > 0 ? Math.min(maximumWidth, chrome + span * scale) : maximumWidth;
 }

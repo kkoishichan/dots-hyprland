@@ -74,20 +74,7 @@ assert.equal(geometry.extent(windows, monitor).left, -904);
 assert.equal(geometry.viewport({width:3840,height:2160,scale:2,transform:1,reserved:[0,40,0,0]}).height, 1880);
 assert.equal(geometry.address('AB12'), '0xab12');
 
-// Cap the overview at complete native columns, including the actual gaps and padding.
-const halfColumns = Array.from({length: 8}, (_, i) => ({ localX: 4 + i * 1278, layoutWidth: 1274 }));
-const overviewCap = geometry.overviewWidth(halfColumns, 2560, 0.18, 1100, 64);
-assert(Math.abs(overviewCap - 984.88) < 1e-8, 'The HDMI cap contains four complete columns');
-assert.equal(geometry.overviewWidth(halfColumns.slice(0, 4), 2560, 0.18, 1100, 64), overviewCap,
-    'An exactly full workspace uses the same cap as an overflowing workspace');
-assert.equal(geometry.overviewWidth(halfColumns.slice(0, 2), 2560, 0.18, 1100, 64), overviewCap,
-    'Few windows do not collapse the maximum width');
-assert.equal(geometry.overviewWidth([], 2560, 0.18, 1100, 64), overviewCap);
-assert.equal(geometry.overviewWidth(halfColumns, 2560, 0.18, overviewCap, 64), overviewCap,
-    'A boundary-sized cap must not lose a column through floating-point rounding');
-assert.equal(geometry.overviewWidth(halfColumns.concat({ localX: 4, layoutWidth: 600 },
-    { localX: 0, layoutWidth: 10000, floating: true }), 2560, 0.18, 1100, 64), overviewCap,
-    'Stacked and floating windows do not count as extra columns');
+// The same half-screen layout retains its capacity on both laptop and external outputs.
 function columnsWithWidths(widths) {
     return widths.reduce((columns, width) => {
         const previous = columns[columns.length - 1];
@@ -95,17 +82,41 @@ function columnsWithWidths(widths) {
         return columns;
     }, []);
 }
-for (const [viewportWidth, halfWidth, slots] of [[1920, 954, 6], [2560, 1274, 4]]) {
+const caps = [];
+for (const [viewportWidth, halfWidth] of [[1920, 954], [2560, 1274]]) {
+    const halfColumns = columnsWithWidths(Array(8).fill(halfWidth));
+    const cap = geometry.overviewWidth(halfColumns, viewportWidth, 0.18, 64);
+    const filled = halfColumns.slice(0, 6);
+    const filledWidth = filled[5].localX + filled[5].layoutWidth - filled[0].localX;
+    assert(Math.abs(cap - (64 + (filledWidth + 8) * 0.18)) < 1e-8,
+        `${viewportWidth}px: the maximum fits six complete half-screen columns`);
+    assert.equal(geometry.overviewWidth(filled, viewportWidth, 0.18, 64), cap,
+        'An exactly full row has the same width as an overflowing row');
+    assert.equal(geometry.overviewWidth(halfColumns.slice(0, 2), viewportWidth, 0.18, 64), cap,
+        'Closing windows retains the available whole-column capacity');
+    assert.equal(geometry.overviewWidth([], viewportWidth, 0.18, 64), cap);
+    assert.equal(geometry.overviewWidth(halfColumns.concat({ localX: 4, layoutWidth: 600 },
+        { localX: 0, layoutWidth: 10000, floating: true }), viewportWidth, 0.18, 64), cap,
+        'Stacked and floating windows do not count as extra columns');
+    assert.equal(geometry.overviewWidth(halfColumns.map(w => ({ ...w, localX: w.localX - 4000 })),
+        viewportWidth, 0.18, 64), cap, 'Scrolling the desktop does not resize the overview');
     const fullWidth = halfWidth * 2 + 4;
-    const expected = geometry.overviewWidth(columnsWithWidths(Array(slots).fill(halfWidth)),
-        viewportWidth, 0.18, 1100, 64);
     for (const widths of [[fullWidth, halfWidth], [halfWidth, fullWidth]]) {
-        assert(Math.abs(geometry.overviewWidth(columnsWithWidths(widths), viewportWidth, 0.18, 1100, 64)
-            - expected) < 1e-8, `${viewportWidth}px: full and half columns retain the ${slots}-half-column cap in either order`);
+        assert(Math.abs(geometry.overviewWidth(columnsWithWidths(widths), viewportWidth, 0.18, 64)
+            - cap) < 1e-8, `${viewportWidth}px: full and half columns retain the six-half-column cap in either order`);
     }
+    caps.push(cap);
 }
-const mixedColumns = columnsWithWidths([846, 1700, 1274, 846, 1700]);
-assert(Math.abs(geometry.overviewWidth(mixedColumns, 2560, 0.18, 1100, 64) - 907.48) < 1e-8,
-    'Different column widths retain their proportions and the fifth column is excluded');
+assert(caps[1] > caps[0], 'The larger output uses more space instead of retaining a fixed pixel cap');
+const mixedColumns = columnsWithWidths([846, 1700, 1274, 846, 1700, 1700, 846]);
+assert(Math.abs(geometry.overviewWidth(mixedColumns, 2560, 0.18, 64) - 1520.92) < 1e-8,
+    'Mixed widths end after six complete columns and exclude the seventh');
+const hidpi = geometry.viewport({ width: 3840, height: 2400, scale: 2 });
+assert.equal(geometry.overviewWidth([], hidpi.width, 0.18, 64), caps[0],
+    'HiDPI output sizing uses logical pixels');
+assert.equal(geometry.overviewWidth([{ localX: 0, layoutWidth: 20000 }], 1920, 0.18, 64), 1152,
+    'An oversized first column uses the available width rather than collapsing the card');
+assert.equal(geometry.overviewWidth([{ localX: 0, layoutWidth: 20000, floating: true }], 1920, 0.18, 64), caps[0]);
+assert.equal(geometry.overviewWidth([], 80, 0.18, 64), 48, 'Padding cannot push the card beyond a tiny output');
 console.log('Dynamic workspace lifecycle, persistence, monitor migration and offscreen geometry: passed');
-console.log('Overview width, complete columns, stacking and mixed widths: passed');
+console.log('Responsive overview width, complete columns, stacking, mixed widths and HiDPI: passed');

@@ -31,10 +31,11 @@ FocusScope {
         (availableHeight - verticalPadding - laneGap * 2) / 3 - windowMargin * 2)))
     readonly property real previewScale: previewHeight / viewport.height
     readonly property real laneHeight: previewHeight + windowMargin * 2
-    readonly property real maximumWidth: Math.max(1, Math.min(1100, viewport.width - 100))
+    readonly property real horizontalPadding: verticalPadding + (windowMargin + tapePadding) * 2
+    readonly property real defaultWidth: Geometry.overviewWidth([], viewport.width, previewScale, horizontalPadding)
     readonly property var workspaceWidths: workspaceIds.reduce((widths, id) => {
         widths[id] = Geometry.overviewWidth(ScrollingLayout.windowsForWorkspace(monitorName, id),
-            viewport.width, previewScale, maximumWidth, verticalPadding + (windowMargin + tapePadding) * 2);
+            viewport.width, previewScale, horizontalPadding);
         return widths;
     }, {})
     property int selectedWorkspace: activeId
@@ -42,7 +43,7 @@ FocusScope {
     property int dropWorkspace: -1
     signal searchRequested(string text)
 
-    implicitWidth: workspaceIds.length ? Math.max(...Object.values(workspaceWidths)) : maximumWidth
+    implicitWidth: workspaceIds.length ? Math.max(...Object.values(workspaceWidths)) : defaultWidth
     implicitHeight: verticalPadding + visibleLaneCount * laneHeight + Math.max(0, visibleLaneCount - 1) * laneGap
 
     function selectWorkspace(id) {
