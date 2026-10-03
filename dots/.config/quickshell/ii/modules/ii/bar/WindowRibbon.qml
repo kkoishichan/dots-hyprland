@@ -111,13 +111,6 @@ Item {
                     }
                 }
             }
-            StyledText {
-                visible: root.windows.length === 0
-                anchors.centerIn: parent
-                text: Translation.tr("Empty workspace")
-                font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colSubtext
-            }
         }
 
     }
