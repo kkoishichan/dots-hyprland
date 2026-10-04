@@ -14,6 +14,7 @@
 - [`config/scrolling-profile.json`](config/scrolling-profile.json)：条栏、概览、字体和语言等界面偏好，应用时合并到已有设置。
 - [布局、快捷键和手势说明](docs/scrolling-layout.md)。
 - [本机同步、备份和更新上游](docs/maintenance.md)。
+- [独立桌面服务与 Plasma 清理后的依赖](docs/desktop-dependencies.md)。
 
 当前桌面已安装依赖时，查看或应用定制：
 

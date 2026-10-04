@@ -90,4 +90,4 @@ else
   apply_term &
 fi
 
-# apply_qt & # Qt theming is already handled by kde-material-colors
+# Qt theming is handled by apply-qt-theme.py in switchwall.sh.

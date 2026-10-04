@@ -7,6 +7,7 @@
 .config/hypr/custom/rules.lua
 .config/hypr/custom/variables.lua
 .config/hypr/hypridle.conf
+.config/hypr/hyprland/env.lua
 .config/hypr/hyprland/keybinds.lua
 .config/kitty/kitty.conf
 .config/quickshell/ii/GlobalStates.qml
@@ -37,4 +38,8 @@
 .config/quickshell/ii/services/ScrollingGeometry.js
 .config/quickshell/ii/services/ScrollingLayout.qml
 .config/quickshell/ii/services/ScrollingWorkspaceModel.js
+.config/quickshell/ii/scripts/colors/apply-qt-theme.py
+.config/quickshell/ii/scripts/colors/applycolor.sh
+.config/quickshell/ii/scripts/colors/switchwall.sh
 .config/quickshell/ii/translations/zh_CN.json
+.config/xdg-desktop-portal/hyprland-portals.conf

@@ -1,16 +1,19 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-kde
 pkgver=1.0
-pkgrel=3
-pkgdesc='Illogical Impulse KDE Dependencies'
+pkgrel=4
+pkgdesc='Illogical Impulse standalone desktop tools and KDE applications'
 arch=(any)
 license=(None)
 depends=(
-  bluedevil
+  blueman
   gnome-keyring
   networkmanager
-  plasma-nm
+  nm-connection-editor
   polkit-kde-agent
   dolphin
-  systemsettings
+  archlinux-xdg-menu
+  qt6ct
+  mugshot
+  gnome-system-monitor
 )
