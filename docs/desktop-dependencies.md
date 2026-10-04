@@ -49,3 +49,19 @@ sudo pacman -S --needed sway swaybg swayidle swaylock foot wmenu xdg-desktop-por
 Hyprland 的终端候选列表将 Kitty 放在 Foot 前面，安装备用桌面的依赖后仍沿用原来的终端。Hyprland 与 Sway 分别使用各自的门户配置。
 
 SDDM 使用独立的 `ii-lock` Qt Quick 主题，与 Quickshell 锁屏同步外观；安装、预览和回退见 [SDDM 登录主题](sddm-theme.md)。
+
+## 密钥环密码同步
+
+使用 GNOME Keyring 保存桌面应用的凭据。SDDM 的 PAM 配置负责使用登录密码解锁 `login` 密钥环；Hyprland 启动密钥环进程本身不会解锁它。
+
+在 Arch Linux 上，备份 `/etc/pam.d/passwd`，确认已安装 `gnome-keyring`，再在现有 `password include system-auth` 后添加：
+
+```pam
+password optional pam_gnome_keyring.so use_authtok
+```
+
+这样用户通过 `passwd` 修改自己的登录密码时，PAM 会使用旧密码解锁 `login` 密钥环，并将其密码同步为新密码。配置在下次运行 `passwd` 时生效，无需重启。它不会立即修正已经不一致的密码；已有不一致时，在 Seahorse（密码和密钥）中单独修改密钥环密码。由 root 重置用户密码时缺少旧密码，不能按此方式同步。
+
+该行仅处理密码修改；TTY 登录时自动解锁仍需另行配置 `/etc/pam.d/login`。系统 PAM 文件不由用户目录部署工具覆盖，升级时应保留并检查此项。
+
+参考：[GNOME Keyring 的 PAM 集成](https://wiki.gnome.org/Projects/GnomeKeyring/Pam)。
