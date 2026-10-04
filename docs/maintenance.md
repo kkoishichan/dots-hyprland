@@ -2,6 +2,8 @@
 
 `origin` 指向 `kkoishichan/dots-hyprland`，`upstream` 指向 `end-4/dots-hyprland`，定制保存在 `main` 分支。初始上游版本记录在 `config/upstream-base.json`。
 
+此 fork 只维护 Hyprland、Quickshell 及配套桌面组件的配置，以及直接相关的部署工具、测试和说明。系统引导、Secure Boot/TPM、磁盘与快照、全局 PAM/账户管理、软件包清理及其他桌面环境的维护内容留在仓库之外；完成系统配置不意味着要提交到这个 fork。
+
 从 GitHub fork 新克隆的工作副本需要先添加上游远端：
 
 ```sh

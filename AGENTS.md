@@ -1,6 +1,8 @@
 # Fork maintenance
 
 - This is a fork of `end-4/dots-hyprland`. Preserve upstream history, licensing, and attribution.
+- Keep custom additions limited to Hyprland, Quickshell, and related desktop component configuration (terminal, input method, portals, themes, and the matching SDDM theme), plus the tools, tests, and documentation directly needed to maintain them.
+- Keep machine administration outside this repository: boot loaders, Secure Boot/TPM, disks and snapshots, global PAM/account changes, package cleanup procedures, and other desktop environments. Maintain those tools and notes locally outside Git. Authorization to configure this machine is not authorization to add that work to this fork.
 - The checkout is the source of truth for the maintained desktop configuration. Edit `dots/`, then deploy the curated changes with `python3 tools/desktop-config.py deploy`.
 - Add new customized desktop files to `config/managed-files.txt`; keep `config/scrolling-profile.json` limited to shareable interface preferences.
 - Keep runtime state, credentials, generated theme colors, monitor arrangements, design backups, and screenshots on the local machine.

@@ -2,6 +2,8 @@
 
 这是 [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) 的个人 fork，以本机实际使用的 Hyprland 与 Quickshell 配置为准。
 
+定制范围限于桌面和相关组件的配置，以及直接服务于这些配置的维护工具、测试与说明。系统引导、磁盘、账户认证、软件包清理和其他桌面环境的维护记录保存在本机。
+
 窗口按列横向滚动，每台显示器独立维护纵向动态工作区。Win 与 Win＋Space 打开同一个简洁概览和搜索界面，条栏中间显示带滚动动画的窗口图标，鼠标点击图标时保持原地。当前使用 Hyprland **0.56.2（Lua 配置）**。
 
 同时保留中文输入、字体、搜索索引、KDE 托盘共存、锁屏与休眠、飞书会议浮动窗口等现有修正。上游历史、安装器、许可证和署名均保留；上游项目介绍见 [.github/README.md](.github/README.md)。
@@ -14,7 +16,7 @@
 - [`config/scrolling-profile.json`](config/scrolling-profile.json)：条栏、概览、字体和语言等界面偏好，应用时合并到已有设置。
 - [布局、快捷键和手势说明](docs/scrolling-layout.md)。
 - [本机同步、备份和更新上游](docs/maintenance.md)。
-- [独立桌面服务与 Plasma 清理后的依赖](docs/desktop-dependencies.md)。
+- [配套桌面组件与依赖](docs/desktop-dependencies.md)。
 
 当前桌面已安装依赖时，查看或应用定制：
 
