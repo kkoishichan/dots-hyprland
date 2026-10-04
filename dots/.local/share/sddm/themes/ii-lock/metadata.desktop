@@ -1,0 +1,11 @@
+[SddmGreeterTheme]
+Name=illogical-impulse Lock
+Description=The illogical-impulse lock screen adapted for SDDM
+Author=koishi; end-4 (original lock screen)
+License=GPL-3.0
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-API=2.0
+QtVersion=6

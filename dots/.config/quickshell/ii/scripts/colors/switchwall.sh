@@ -46,6 +46,7 @@ post_process() {
     local wallpaper_path="$3"
 
     handle_qt_colors &
+    python3 "$SCRIPT_DIR/sync-sddm-theme.py" --if-installed &
     "$SCRIPT_DIR/code/material-code-set-color.sh" &
 }
 

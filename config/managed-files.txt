@@ -43,3 +43,14 @@
 .config/quickshell/ii/scripts/colors/switchwall.sh
 .config/quickshell/ii/translations/zh_CN.json
 .config/xdg-desktop-portal/hyprland-portals.conf
+.config/quickshell/ii/scripts/colors/sync-sddm-theme.py
+.local/share/sddm/themes/ii-lock/ActionButton.qml
+.local/share/sddm/themes/ii-lock/Battery.qml
+.local/share/sddm/themes/ii-lock/Capsule.qml
+.local/share/sddm/themes/ii-lock/Choice.qml
+.local/share/sddm/themes/ii-lock/Main.qml
+.local/share/sddm/themes/ii-lock/PasswordShapes.qml
+.local/share/sddm/themes/ii-lock/Style.qml
+.local/share/sddm/themes/ii-lock/Symbol.qml
+.local/share/sddm/themes/ii-lock/metadata.desktop
+.local/share/sddm/themes/ii-lock/theme.conf

@@ -48,7 +48,7 @@ def managed_files(repo):
     for relative in paths:
         checked_path(repo / "dots", relative)
         allowed_files = (".config/kitty/kitty.conf", ".config/xdg-desktop-portal/hyprland-portals.conf")
-        if relative not in allowed_files and not relative.startswith((".config/hypr/", ".config/quickshell/ii/")):
+        if relative not in allowed_files and not relative.startswith((".config/hypr/", ".config/quickshell/ii/", ".local/share/sddm/themes/ii-lock/")):
             raise ValueError(f"Unsupported desktop path: {relative}")
     return paths
 

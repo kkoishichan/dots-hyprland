@@ -47,3 +47,5 @@ sudo pacman -S --needed sway swaybg swayidle swaylock foot wmenu xdg-desktop-por
 注销后在 SDDM 会话菜单选择 Sway。`Win+Enter` 打开 Foot，`Win+D` 打开启动器，`Win+Shift+E` 确认退出。锁屏和闲置管理工具已安装，是否自动运行由基础配置决定。
 
 Hyprland 的终端候选列表将 Kitty 放在 Foot 前面，安装备用桌面的依赖后仍沿用原来的终端。Hyprland 与 Sway 分别使用各自的门户配置。
+
+SDDM 使用独立的 `ii-lock` Qt Quick 主题，与 Quickshell 锁屏同步外观；安装、预览和回退见 [SDDM 登录主题](sddm-theme.md)。
