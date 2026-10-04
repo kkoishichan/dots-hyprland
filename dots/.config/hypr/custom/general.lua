@@ -24,7 +24,8 @@ hl.config({
 	general = {
 		border_size = active_border_enabled and active_border_size or 0,
 		gaps_in = 2,
-		gaps_out = 4,
+		-- Scrolling fits logical columns; larger horizontal outer gaps expose offscreen neighbours.
+		gaps_out = { top = 4, right = 2, bottom = 4, left = 2 },
 		col = {
 			active_border = "rgba(" .. active_border_color .. "FF)",
 		},
@@ -39,7 +40,8 @@ hl.config({
         fullscreen_on_one_column = false,
         focus_fit_method = 1,
         follow_focus = true,
-        explicit_column_widths = "0.333, 0.5, 0.667, 1.0",
+        -- Three rounded 0.333 columns leave a visible sliver of the next column.
+        explicit_column_widths = "0.3333333, 0.5, 0.6666667, 1.0",
         wrap_focus = false,
         wrap_swapcol = false
     }
