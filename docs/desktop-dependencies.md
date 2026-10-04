@@ -35,3 +35,15 @@ XDG_MENU_PREFIX=arch- kbuildsycoca6 --noincremental
 删除 Plasma 时，根据本机反向依赖生成并审查明确的卸载列表，保留用户应用、登录组件和个人配置。不直接运行全系统孤儿包清理，也不删除整个 KDE/Qt 软件包组。
 
 参考：[ArchWiki 门户配置](https://wiki.archlinux.org/title/XDG_Desktop_Portal)、[Dolphin 的应用列表和主题](https://wiki.archlinux.org/title/Dolphin)、[Qt QPalette](https://doc.qt.io/qt-6/qpalette.html)。
+
+## Sway 备用会话
+
+备用桌面采用 Arch 软件包提供的 `/etc/sway/config` 和 `/etc/sway/config.d/`，使用原生平铺布局、Swaybar、Foot 和 wmenu；不创建用户配置副本，便于继续使用发行版的基础配置。
+
+```sh
+sudo pacman -S --needed sway swaybg swayidle swaylock foot wmenu xdg-desktop-portal-wlr
+```
+
+注销后在 SDDM 会话菜单选择 Sway。`Win+Enter` 打开 Foot，`Win+D` 打开启动器，`Win+Shift+E` 确认退出。锁屏和闲置管理工具已安装，是否自动运行由基础配置决定。
+
+Hyprland 的终端候选列表将 Kitty 放在 Foot 前面，安装备用桌面的依赖后仍沿用原来的终端。Hyprland 与 Sway 分别使用各自的门户配置。
