@@ -7,6 +7,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import "../../../services/SearchRanking.js" as Ranking
 
 RowLayout {
     id: root
@@ -23,7 +24,8 @@ RowLayout {
     enum SearchPrefixType { Action, App, Clipboard, Emojis, Math, ShellCommand, WebSearch, DefaultSearch }
 
     property var searchPrefixType: {
-        if (root.searchingText.startsWith(Config.options.search.prefix.action)) return SearchBar.SearchPrefixType.Action;
+        // Matches LauncherSearch, which treats "/usr/bin/foo" as a command rather than an action.
+        if (Ranking.parseQuery(root.searchingText, Config.options.search.prefix).mode === "action") return SearchBar.SearchPrefixType.Action;
         if (root.searchingText.startsWith(Config.options.search.prefix.app)) return SearchBar.SearchPrefixType.App;
         if (root.searchingText.startsWith(Config.options.search.prefix.clipboard)) return SearchBar.SearchPrefixType.Clipboard;
         if (root.searchingText.startsWith(Config.options.search.prefix.emojis)) return SearchBar.SearchPrefixType.Emojis;

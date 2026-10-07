@@ -26,6 +26,7 @@ Item { // Wrapper
     implicitHeight: searchWidgetContent.implicitHeight + searchBar.verticalPadding * 2 + Appearance.sizes.elevationMargin * 2
 
     function focusFirstItem() {
+        appResults.forceLayout();
         appResults.currentIndex = 0;
     }
 
@@ -162,6 +163,7 @@ Item { // Wrapper
 
             ListView { // App results
                 id: appResults
+                property var resultEntries: []
                 visible: root.showResults
                 Layout.fillWidth: true
                 implicitHeight: Math.min(600, appResults.contentHeight + topMargin + bottomMargin)
@@ -189,23 +191,20 @@ Item { // Wrapper
                     id: debounceTimer
                     interval: root.typingDebounceInterval
                     onTriggered: {
-                        resultModel.values = LauncherSearch.results ?? [];
+                        appResults.resultEntries = Array.from(LauncherSearch.results ?? []);
                     }
                 }
 
                 Connections {
                     target: LauncherSearch
                     function onResultsChanged() {
-                        resultModel.values = LauncherSearch.results.slice(0, root.typingResultLimit);
+                        appResults.resultEntries = LauncherSearch.results.slice(0, root.typingResultLimit);
                         root.focusFirstItem();
                         debounceTimer.restart();
                     }
                 }
 
-                model: ScriptModel {
-                    id: resultModel
-                    objectProp: "key"
-                }
+                model: appResults.resultEntries
 
                 delegate: SearchItem {
                     id: searchItem
