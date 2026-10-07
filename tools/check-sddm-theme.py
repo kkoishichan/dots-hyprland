@@ -8,9 +8,11 @@ os.environ.setdefault('QT_QUICK_CONTROLS_STYLE', 'Basic')
 os.environ.setdefault('QML_XHR_ALLOW_FILE_READ', '1')
 import sys
 from pathlib import Path
+theme=Path(sys.argv[1]).resolve()
+os.environ['FONTCONFIG_FILE']=str(theme/'fontconfig.conf')
 from PySide6.QtCore import (QAbstractListModel, QModelIndex, QObject, Property, QSettings,
                             Signal, Slot, Qt, QUrl, QMetaObject, qInstallMessageHandler)
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QTextLayout
 from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
 
@@ -84,7 +86,6 @@ class Keyboard(QObject):
         self.currentLayoutChanged.emit()
 
 app=QGuiApplication([])
-theme=Path(sys.argv[1]).resolve()
 config_values={}
 for file in [theme/'theme.conf',theme/'theme.conf.user']:
     ini=QSettings(str(file),QSettings.IniFormat)
@@ -103,6 +104,18 @@ root=view.rootObject()
 password=root.findChild(QObject,'passwordField')
 user=root.findChild(QObject,'userSelector');session=root.findChild(QObject,'sessionSelector')
 assert all(x is not None for x in (password,user,session))
+# Check glyph selection from the actual QML fonts, not just the declared family.
+# This also runs as the sddm account during installation, without user fontconfig.
+for name in ['passwordField', 'clockTime', 'dateLabel', 'lockStatusLabel']:
+    item=root.findChild(QObject,name)
+    assert item is not None,name
+    font=item.property('font')
+    layout=QTextLayout('输入密码星期四已锁定',font)
+    layout.beginLayout()
+    line=layout.createLine();line.setLineWidth(2000)
+    layout.endLayout()
+    families={run.rawFont().familyName() for run in layout.glyphRuns()}
+    assert families=={'Noto Sans CJK SC'},(name,font.families(),families)
 assert password.property('activeFocus'),'Password input does not receive initial focus'
 assert root.findChild(QObject,'fingerprintIcon') is None
 assert password.property('placeholderText')=='输入密码'
@@ -163,4 +176,4 @@ if len(sys.argv)>2:
     QTest.qWait(600)
     assert view.grabWindow().save(sys.argv[2]),'Could not save theme preview'
 view.setSource(QUrl());view.close()
-print('PASS: selection, password submission/clearing, pending guard, password failure/retry, empty password failure, Escape, keyboard layouts, popups and power routing (mock backend).')
+print('PASS: Noto Sans CJK SC glyph selection, selection, password submission/clearing, pending guard, password failure/retry, empty password failure, Escape, keyboard layouts, popups and power routing (mock backend).')

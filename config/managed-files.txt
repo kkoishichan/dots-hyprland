@@ -71,3 +71,4 @@
 .local/share/sddm/themes/ii-lock/Symbol.qml
 .local/share/sddm/themes/ii-lock/metadata.desktop
 .local/share/sddm/themes/ii-lock/theme.conf
+.local/share/sddm/themes/ii-lock/fontconfig.conf

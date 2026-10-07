@@ -52,7 +52,7 @@ def install(bundle, username):
             raise ValueError('Invalid theme file: ' + relative)
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise ValueError('Theme changed after validation: ' + relative)
-    required = {'Main.qml', 'Style.qml', 'PasswordShapes.qml', 'PasswordShapePaths.js', 'metadata.desktop', 'theme.conf'}
+    required = {'Main.qml', 'Style.qml', 'PasswordShapes.qml', 'PasswordShapePaths.js', 'metadata.desktop', 'theme.conf', 'fontconfig.conf'}
     if not required.issubset(manifest):
         raise ValueError('Incomplete theme bundle.')
     backup = BACKUPS / datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -102,7 +102,8 @@ def install(bundle, username):
         raise
     OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
     temporary = OVERRIDE.with_suffix('.tmp')
-    temporary.write_text('[General]\nGreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1\n\n[Theme]\nCurrent=ii-lock\n')
+    temporary.write_text('[General]\nGreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1,'
+                         f'FONTCONFIG_FILE={THEME / "fontconfig.conf"}\n\n[Theme]\nCurrent=ii-lock\n')
     temporary.chmod(0o644)
     temporary.replace(OVERRIDE)
     print('Installed. The next greeter uses ii-lock; the active session was not restarted.')

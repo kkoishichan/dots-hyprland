@@ -18,7 +18,7 @@ spec = importlib.util.spec_from_file_location("sddm_theme", SCRIPT)
 installer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(installer)
 
-REQUIRED = ("Main.qml", "Style.qml", "PasswordShapes.qml", "PasswordShapePaths.js", "metadata.desktop", "theme.conf")
+REQUIRED = ("Main.qml", "Style.qml", "PasswordShapes.qml", "PasswordShapePaths.js", "metadata.desktop", "theme.conf", "fontconfig.conf")
 
 
 class SddmInstallTests(unittest.TestCase):
@@ -77,6 +77,7 @@ class SddmInstallTests(unittest.TestCase):
         self.assertEqual((self.theme / "theme.conf.user").resolve(), (installer.ASSETS / "theme.conf").resolve())
         self.assertEqual(sorted(p.name for p in self.themes.iterdir()), ["ii-lock"])
         self.assertIn("Current=ii-lock", installer.OVERRIDE.read_text())
+        self.assertIn(f"FONTCONFIG_FILE={self.theme / 'fontconfig.conf'}", installer.OVERRIDE.read_text())
 
 
 if __name__ == "__main__":

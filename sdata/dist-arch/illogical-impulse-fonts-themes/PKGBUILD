@@ -1,7 +1,7 @@
 groups=(illogical-impulse)
 pkgname=illogical-impulse-fonts-themes
 pkgver=1.0
-pkgrel=7
+pkgrel=8
 pkgdesc='Illogical Impulse Fonts and Theming Dependencies'
 arch=(any)
 license=(None)
@@ -15,6 +15,7 @@ depends=(
   fontconfig
   kitty
   matugen
+  noto-fonts-cjk
   otf-space-grotesk
   starship
   ttf-jetbrains-mono-nerd

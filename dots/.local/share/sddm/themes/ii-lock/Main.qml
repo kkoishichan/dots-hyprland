@@ -90,6 +90,7 @@ Rectangle {
             spacing: 4
             ClockLabel {
                 id: clockTime
+                objectName: "clockTime"
                 Layout.fillWidth: true
                 text: config.boolValue("clockVertical") ? Qt.locale().toString(root.now, config.timeFormat).split(":")[0].padStart(2, "0") : Qt.locale().toString(root.now, config.timeFormat)
                 font.family: themeStyle.clockFont
@@ -105,6 +106,7 @@ Rectangle {
                 font: clockTime.font
             }
             ClockLabel {
+                objectName: "dateLabel"
                 Layout.fillWidth: true
                 Layout.topMargin: -20
                 visible: config.boolValue("showDate")
@@ -130,6 +132,7 @@ Rectangle {
                     styleColor: themeStyle.shadow
                 }
                 ClockLabel {
+                    objectName: "lockStatusLabel"
                     anchors.verticalCenter: parent.verticalCenter
                     text: "已锁定"
                     font.pixelSize: 17
@@ -273,7 +276,7 @@ Rectangle {
                 objectName: "sessionSelector"
                 styleData: themeStyle
                 symbol: "desktop_windows"
-                compact: true
+                maximumWidth: 240
                 model: sessionModel
                 currentIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
                 enabled: !root.authenticating
