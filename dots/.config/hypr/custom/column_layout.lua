@@ -165,6 +165,7 @@ function M.cycle()
     if not ok then error(message) end
     if not restored then error(restore_error) end
     states[key] = { mode = plan.mode, ids = plan.ids }
+    hl.dispatch(hl.dsp.global("quickshell:layoutChanged")) -- Best effort: Quickshell may be restarting.
 end
 
 return M

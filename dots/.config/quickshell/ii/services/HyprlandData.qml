@@ -125,6 +125,14 @@ Singleton {
         onTriggered: root.updateAll()
     }
 
+    // Native layout operations (swapping, merging, resizing or centering columns) emit no
+    // IPC event. The Hyprland bindings report them so window order refreshes immediately.
+    GlobalShortcut {
+        name: "layoutChanged"
+        description: "Refreshes window positions after a scrolling layout change"
+        onPressed: root.updateWindowList()
+    }
+
     // Recover stale snapshots after missed IPC events or monitor/suspend changes.
     // Every event already refreshes, so this only matters while the desktop is idle.
     Timer {

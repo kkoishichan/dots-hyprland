@@ -7,12 +7,16 @@ import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.common.functions
 import qs.modules.common.widgets
 
 Item {
     id: root
     readonly property string monitorName: root.QsWindow.window?.screen?.name ?? ""
-    readonly property int workspaceId: ScrollingLayout.activeId(monitorName)
+    readonly property bool monitorFocused: Hyprland.focusedMonitor?.name === monitorName
+    // A visible scratchpad takes over the ribbon, as it takes keyboard focus.
+    readonly property int specialId: HyprlandData.monitors.find(m => m.name === monitorName)?.specialWorkspace?.id ?? 0
+    readonly property int workspaceId: specialId !== 0 ? specialId : ScrollingLayout.activeId(monitorName)
     readonly property var windows: ScrollingLayout.windowsForWorkspace(monitorName, workspaceId)
     readonly property var focusedWindow: ScrollingLayout.focusedWindow(monitorName, workspaceId)
     readonly property int focusedIndex: windows.findIndex(w => w.address === focusedWindow?.address)
@@ -82,8 +86,11 @@ Item {
                         required property var modelData
                         implicitWidth: root.iconButtonWidth
                         toggled: modelData.address === root.focusedWindow?.address
-                        colBackgroundToggled: Appearance.colors.colSecondaryContainer
-                        colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
+                        // Another output's last focused window is marked more faintly than the keyboard focus.
+                        colBackgroundToggled: root.monitorFocused ? Appearance.colors.colSecondaryContainer
+                            : ColorUtils.transparentize(Appearance.colors.colSecondaryContainer, 0.6)
+                        colBackgroundToggledHover: root.monitorFocused ? Appearance.colors.colSecondaryContainerHover
+                            : ColorUtils.transparentize(Appearance.colors.colSecondaryContainerHover, 0.4)
                         opacity: toggled ? 1 : modelData.viewFraction > 0.05 ? 0.9 : 0.45
                         onClicked: root.focusWindow(modelData.address)
                         contentItem: Item {
@@ -127,7 +134,7 @@ Item {
             if (delta * wheelDelta < 0) wheelDelta = 0;
             wheelDelta += delta;
             while (Math.abs(wheelDelta) >= threshold) {
-                ScrollingLayout.focusColumn(root.monitorName, wheelDelta > 0 ? -1 : 1);
+                ScrollingLayout.focusColumn(root.monitorName, wheelDelta > 0 ? -1 : 1, root.workspaceId);
                 wheelDelta -= Math.sign(wheelDelta) * threshold;
             }
             event.accepted = true;

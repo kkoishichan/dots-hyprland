@@ -187,6 +187,8 @@ local function settle(current)
         and fully_visible(original, viewport) then
         dispatch(hl.dsp.focus({ window = original }))
     end
+    -- Layout moves emit no IPC event; refresh Quickshell's window positions.
+    hl.dispatch(hl.dsp.global("quickshell:layoutChanged")) -- Best effort: Quickshell may be restarting.
 end
 
 function M.finish(event)

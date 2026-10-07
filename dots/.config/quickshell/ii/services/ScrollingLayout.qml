@@ -207,8 +207,8 @@ Singleton {
         Hyprland.dispatch(`hl.dsp.focus({ window = ${luaString("address:" + address)} })`);
     }
 
-    function focusColumn(name, delta) {
-        const id = activeId(name);
+    function focusColumn(name, delta, workspaceId) {
+        const id = workspaceId ?? activeId(name);
         const windows = windowsForWorkspace(name, id).filter(w => !w.floating);
         if (!windows.length) return;
         const focused = focusedWindow(name, id);

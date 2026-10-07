@@ -6,6 +6,14 @@ end
 local function scrolling(command)
     return hl.dsp.exec_cmd("qs -c $qsConfig ipc call scrolling " .. command)
 end
+-- Native layout operations emit no IPC event; tell Quickshell to refresh window order.
+local function layout(command)
+    local action = hl.dsp.layout(command)
+    return function()
+        hl.dispatch(action)
+        hl.dispatch(hl.dsp.global("quickshell:layoutChanged"))
+    end
+end
 
 -- Preserve pre-migration shortcuts, including the user's XF86Back/Forward
 -- bindings. Coordinated column layouts use the user's chosen SUPER+R; the separately
@@ -19,15 +27,15 @@ for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
 end
 replace("SUPER + BracketLeft", hl.dsp.layout("focus l"), "Column: Focus previous")
 replace("SUPER + BracketRight", hl.dsp.layout("focus r"), "Column: Focus next")
-replace("SUPER + SHIFT + Left", hl.dsp.layout("swapcol l"), "Column: Move left")
-replace("SUPER + SHIFT + Right", hl.dsp.layout("swapcol r"), "Column: Move right")
-replace("SUPER + ALT + Left", hl.dsp.layout("consume_or_expel prev"), "Column: Merge or split toward left")
-replace("SUPER + ALT + Right", hl.dsp.layout("consume_or_expel next"), "Column: Merge or split toward right")
-replace("SUPER + Semicolon", hl.dsp.layout("colresize -conf"), "Column: Previous width", true)
-replace("SUPER + Apostrophe", hl.dsp.layout("colresize +conf"), "Column: Next width", true)
+replace("SUPER + SHIFT + Left", layout("swapcol l"), "Column: Move left")
+replace("SUPER + SHIFT + Right", layout("swapcol r"), "Column: Move right")
+replace("SUPER + ALT + Left", layout("consume_or_expel prev"), "Column: Merge or split toward left")
+replace("SUPER + ALT + Right", layout("consume_or_expel next"), "Column: Merge or split toward right")
+replace("SUPER + Semicolon", layout("colresize -conf"), "Column: Previous width", true)
+replace("SUPER + Apostrophe", layout("colresize +conf"), "Column: Next width", true)
 local column_layout = require("custom.column_layout")
 replace("SUPER + R", column_layout.cycle, "Columns: Cycle paired and triple layouts")
-replace("SUPER + CTRL + C", hl.dsp.layout("center"), "Column: Center")
+replace("SUPER + CTRL + C", layout("center"), "Column: Center")
 replace("SUPER + Space", hl.dsp.global("quickshell:searchToggle"), "Shell: Search")
 hl.unbind("SUPER + Tab")
 

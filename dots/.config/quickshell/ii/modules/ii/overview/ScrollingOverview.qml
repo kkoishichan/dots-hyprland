@@ -41,6 +41,7 @@ FocusScope {
     property int selectedWorkspace: activeId
     property string selectedAddress: ""
     property int dropWorkspace: -1
+    property point dragPoint: Qt.point(0, 0)
     signal searchRequested(string text)
 
     implicitWidth: workspaceIds.length ? Math.max(...Object.values(workspaceWidths)) : defaultWidth
@@ -76,7 +77,8 @@ FocusScope {
         if (workspaceIds.length) selectWorkspace(workspaceIds[Math.max(0, Math.min(workspaceIds.length - 1, index + delta))]);
     }
     function changeWindow(delta) {
-        const windows = ScrollingLayout.windowsForWorkspace(monitorName, selectedWorkspace);
+        // Inactive group tabs sit beneath their visible tab, so a selection there would be hidden.
+        const windows = ScrollingLayout.windowsForWorkspace(monitorName, selectedWorkspace).filter(w => !w.hidden);
         if (!windows.length) return;
         const index = windows.findIndex(w => w.address === selectedAddress);
         selectedAddress = windows[Math.max(0, Math.min(windows.length - 1, index + delta))].address;
@@ -87,6 +89,24 @@ FocusScope {
             tape.contentX = Math.max(0, Math.min(tape.contentWidth - tape.width, tape.contentX - delta));
         } else lanes.contentY = Math.max(0, Math.min(lanes.contentHeight - lanes.height, lanes.contentY - event.angleDelta.y));
         event.accepted = true;
+    }
+    // Drops are hit-tested by hand so the target follows lanes scrolled under a still pointer.
+    function laneAt(point) {
+        const lane = laneColumn.children.find(item => item.workspaceId !== undefined
+            && item.contains(item.mapFromItem(lanes, point.x, point.y)));
+        return lane ? lane.workspaceId : -1;
+    }
+    function updateDrag(point) {
+        dragPoint = point;
+        dropWorkspace = laneAt(point);
+        const edge = 40;
+        dragScroll.direction = point.y < edge ? -1 : point.y > lanes.height - edge ? 1 : 0;
+        if (dragScroll.direction !== 0) dragScroll.start();
+    }
+    function endDrag() {
+        dragScroll.stop();
+        dragScroll.direction = 0;
+        dropWorkspace = -1;
     }
     onWorkspaceIdsChanged: {
         if (!workspaceIds.includes(selectedWorkspace)) selectWorkspace(activeId);
@@ -161,6 +181,7 @@ FocusScope {
                         readonly property real tapeWidth: (extent.right - extent.left) * root.previewScale
                         readonly property bool selected: root.selectedWorkspace === workspaceId
                         readonly property bool receivingDrop: root.dropWorkspace === workspaceId
+                        readonly property bool onScreen: y + height > lanes.contentY && y < lanes.contentY + lanes.height
                         width: Math.max(1, (root.workspaceWidths[workspaceId] ?? root.implicitWidth) - root.verticalPadding)
                         x: (laneColumn.width - width) / 2
                         height: root.laneHeight
@@ -226,16 +247,14 @@ FocusScope {
                                     cornerRadius: root.windowRadius
                                     toplevel: ScrollingLayout.toplevelForAddress(modelData.address)
                                     selected: root.selectedWorkspace === lane.workspaceId && root.selectedAddress === modelData.address
+                                    // Only thumbnails in view update live; the rest keep one captured frame.
+                                    liveCapture: dragging || lane.onScreen && x + width > tape.contentX && x < tape.contentX + tape.width
                                     x: initialX
                                     y: initialY
                                     width: modelData.layoutWidth * root.previewScale
                                     height: modelData.layoutHeight * root.previewScale
                                     z: dragging ? 100 : modelData.floating ? 3 : modelData.hidden ? 0 : 1
                                     opacity: modelData.hidden ? 0.45 : 1
-                                    Drag.active: dragging
-                                    Drag.source: window
-                                    Drag.hotSpot.x: width / 2
-                                    Drag.hotSpot.y: height / 2
                                     states: State { when: window.dragging; ParentChange { target: window; parent: dragLayer } }
                                     function resetPosition() { x = Qt.binding(() => initialX); y = Qt.binding(() => initialY); }
                                     MouseArea {
@@ -246,17 +265,22 @@ FocusScope {
                                         drag.target: window
                                         onEntered: window.hovered = true
                                         onExited: window.hovered = false
-                                        onPressed: { window.pressed = true; window.didDrag = false; root.dropWorkspace = -1; }
-                                        onPositionChanged: { if (drag.active) { window.didDrag = true; window.dragging = true; } }
+                                        onPressed: { window.pressed = true; window.didDrag = false; root.endDrag(); }
+                                        onPositionChanged: mouse => {
+                                            if (!drag.active) return;
+                                            window.didDrag = true;
+                                            window.dragging = true;
+                                            root.updateDrag(windowArea.mapToItem(lanes, mouse.x, mouse.y));
+                                        }
                                         onReleased: {
                                             window.pressed = false;
                                             if (window.didDrag && root.dropWorkspace > 0 && root.dropWorkspace !== lane.workspaceId)
                                                 ScrollingLayout.moveWindowTo(root.monitorName, root.dropWorkspace, window.modelData.address, false);
                                             window.dragging = false;
-                                            root.dropWorkspace = -1;
+                                            root.endDrag();
                                             Qt.callLater(window.resetPosition);
                                         }
-                                        onCanceled: { window.pressed = false; window.dragging = false; root.dropWorkspace = -1; Qt.callLater(window.resetPosition); }
+                                        onCanceled: { window.pressed = false; window.dragging = false; root.endDrag(); Qt.callLater(window.resetPosition); }
                                         onClicked: mouse => {
                                             if (window.didDrag) return;
                                             if (mouse.button === Qt.MiddleButton)
@@ -269,11 +293,6 @@ FocusScope {
                             }
                             MouseArea { anchors.fill: parent; acceptedButtons: Qt.NoButton; onWheel: event => root.wheel(event, tape) }
                         }
-                        DropArea {
-                            anchors.fill: parent
-                            onEntered: root.dropWorkspace = lane.workspaceId
-                            onExited: { if (root.dropWorkspace === lane.workspaceId) root.dropWorkspace = -1; }
-                        }
                     }
                 }
             }
@@ -281,4 +300,18 @@ FocusScope {
     }
     Item { id: dragLayer; anchors.fill: parent; z: 1000 }
     Timer { id: selectionRestore; interval: 220; onTriggered: root.selectWorkspace(root.activeId) }
+    // Dragging near the top or bottom edge scrolls to workspaces outside the three visible lanes.
+    Timer {
+        id: dragScroll
+        property int direction: 0
+        interval: 16
+        repeat: true
+        onTriggered: {
+            const limit = Math.max(0, lanes.contentHeight - lanes.height);
+            const next = Math.max(0, Math.min(limit, lanes.contentY + direction * 10));
+            if (direction === 0 || next === lanes.contentY) { stop(); return; }
+            lanes.contentY = next;
+            root.dropWorkspace = root.laneAt(root.dragPoint);
+        }
+    }
 }

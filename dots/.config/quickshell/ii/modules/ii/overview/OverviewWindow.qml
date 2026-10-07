@@ -17,6 +17,8 @@ Item {
     property bool selected: false
     property bool hovered: false
     property bool pressed: false
+    // Offscreen thumbnails keep a single frame instead of capturing every frame.
+    property bool liveCapture: true
     property real cornerRadius: Appearance.rounding.small
     readonly property bool centerIcons: Config.options.overview.centerIcons
     readonly property real iconBaseSize: Math.min(width, height)
@@ -37,7 +39,8 @@ Item {
     ScreencopyView {
         anchors.fill: parent
         captureSource: GlobalStates.overviewOpen ? root.toplevel : null
-        live: true
+        // Stay live until the first frame arrives so offscreen thumbnails are never blank.
+        live: root.liveCapture || !hasContent
         constraintSize: Qt.size(root.width, root.height)
 
         Rectangle {
