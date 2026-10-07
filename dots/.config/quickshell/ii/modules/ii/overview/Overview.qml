@@ -13,6 +13,9 @@ Scope {
     id: overviewScope
     property bool dontAutoCancelSearch: false
     property var savedFullscreen: null
+    // Keep the overview after its first use so each card keeps its last captured frame;
+    // columns scrolled off screen cannot be captured again until they return.
+    property bool overviewLoaded: false
     readonly property var focusedScreen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
     Component.onDestruction: restoreFullscreen()
 
@@ -74,6 +77,7 @@ Scope {
                 // Selections close the overview before focusing; decide after that request.
                 Qt.callLater(overviewScope.restoreFullscreen);
             } else {
+                overviewScope.overviewLoaded = true;
                 ScrollingLayout.focusRequest = "";
                 if (!overviewScope.dontAutoCancelSearch) searchWidget.cancelSearch();
                 overviewScope.prepareSurface();
@@ -123,7 +127,7 @@ Scope {
             Loader {
                 id: overviewLoader
                 anchors.horizontalCenter: parent.horizontalCenter
-                active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
+                active: (GlobalStates.overviewOpen || overviewScope.overviewLoaded) && (Config?.options.overview.enable ?? true)
                 visible: panelWindow.searchingText === ""
                 sourceComponent: OverviewWidget {
                     screen: panelWindow.screen

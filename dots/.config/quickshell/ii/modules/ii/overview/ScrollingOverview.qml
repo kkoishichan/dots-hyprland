@@ -42,9 +42,20 @@ FocusScope {
     property string selectedAddress: ""
     property int dropWorkspace: -1
     property point dragPoint: Qt.point(0, 0)
+    property real dragOriginY: NaN
+    // Motion starts after the initial layout, so opening the overview does not animate it.
+    property bool settled: false
+    // Shared motion for rearranged, returned and dropped cards; it retargets mid-flight.
+    readonly property Component moveAnimation: Component { NumberAnimation {
+        duration: Appearance.animation.elementMoveFast.duration
+        easing.type: Appearance.animation.elementMoveFast.type
+        easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+    } }
     signal searchRequested(string text)
+    signal opened()
 
     implicitWidth: workspaceIds.length ? Math.max(...Object.values(workspaceWidths)) : defaultWidth
+    Behavior on implicitWidth { enabled: root.settled; animation: root.moveAnimation.createObject(root) }
     implicitHeight: verticalPadding + visibleLaneCount * laneHeight + Math.max(0, visibleLaneCount - 1) * laneGap
 
     function selectWorkspace(id) {
@@ -52,9 +63,18 @@ FocusScope {
         selectedAddress = ScrollingLayout.focusedWindow(monitorName, id)?.address ?? "";
         const index = workspaceIds.indexOf(id);
         const top = index * (laneHeight + laneGap);
-        if (top < lanes.contentY) lanes.contentY = top;
-        else if (top + laneHeight > lanes.contentY + lanes.height) lanes.contentY = top + laneHeight - lanes.height;
-        lanes.contentY = Math.max(0, Math.min(lanes.contentHeight - lanes.height, lanes.contentY));
+        const current = laneScroll.running ? laneScroll.to : lanes.contentY;
+        if (top < current) scrollLanes(top);
+        else if (top + laneHeight > current + lanes.height) scrollLanes(top + laneHeight - lanes.height);
+    }
+    function scrollLanes(target) {
+        target = Math.max(0, Math.min(lanes.contentHeight - lanes.height, target));
+        laneScroll.stop();
+        if (!settled) lanes.contentY = target;
+        else if (target !== lanes.contentY) {
+            laneScroll.to = target;
+            laneScroll.start();
+        }
     }
     function geometry() {
         return laneColumn.children.filter(lane => lane.workspaceId !== undefined).map(lane => {
@@ -84,6 +104,8 @@ FocusScope {
         selectedAddress = windows[Math.max(0, Math.min(windows.length - 1, index + delta))].address;
     }
     function wheel(event, tape) {
+        laneScroll.stop();
+        tape.stopScroll();
         if (event.angleDelta.x || (event.modifiers & Qt.ShiftModifier)) {
             const delta = event.angleDelta.x || event.angleDelta.y;
             tape.contentX = Math.max(0, Math.min(tape.contentWidth - tape.width, tape.contentX - delta));
@@ -99,19 +121,36 @@ FocusScope {
     function updateDrag(point) {
         dragPoint = point;
         dropWorkspace = laneAt(point);
-        const edge = 40;
-        dragScroll.direction = point.y < edge ? -1 : point.y > lanes.height - edge ? 1 : 0;
-        if (dragScroll.direction !== 0) dragScroll.start();
+        if (isNaN(dragOriginY)) dragOriginY = point.y;
+        // A card grabbed inside an edge zone must be moved before the lanes start scrolling.
+        const edge = 48;
+        const armed = Math.abs(point.y - dragOriginY) > 24;
+        const depth = point.y < edge ? point.y - edge : point.y > lanes.height - edge ? point.y - lanes.height + edge : 0;
+        const reach = armed ? Math.max(-1, Math.min(1, depth / edge)) : 0;
+        if (reach !== 0) laneScroll.stop();
+        dragScroll.speed = reach * 900;
     }
     function endDrag() {
-        dragScroll.stop();
-        dragScroll.direction = 0;
+        dragScroll.speed = 0;
+        dragOriginY = NaN;
         dropWorkspace = -1;
     }
     onWorkspaceIdsChanged: {
         if (!workspaceIds.includes(selectedWorkspace)) selectWorkspace(activeId);
     }
     Component.onCompleted: Qt.callLater(() => selectWorkspace(activeId))
+    // The overview stays loaded between uses; each opening starts from the current desktop.
+    Connections {
+        target: GlobalStates
+        function onOverviewOpenChanged() {
+            root.settled = false;
+            root.endDrag();
+            if (!GlobalStates.overviewOpen) return;
+            settleTimer.restart();
+            root.opened();
+            Qt.callLater(() => root.selectWorkspace(root.activeId));
+        }
+    }
     Connections {
         target: HyprlandData
         function onWindowListChanged() {
@@ -190,6 +229,10 @@ FocusScope {
                             : Appearance.colors.colSurfaceContainerLow
                         border.width: 2
                         border.color: selected ? Appearance.colors.colSecondary : receivingDrop ? Appearance.colors.colLayer2Hover : "transparent"
+                        Behavior on width { enabled: root.settled; animation: root.moveAnimation.createObject(lane) }
+                        Behavior on x { enabled: root.settled; animation: root.moveAnimation.createObject(lane) }
+                        Behavior on color { enabled: root.settled; animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(lane) }
+                        Behavior on border.color { enabled: root.settled; animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(lane) }
                         MouseArea {
                             anchors.fill: parent
                             onClicked: { GlobalStates.overviewOpen = false; ScrollingLayout.focusWorkspace(root.monitorName, lane.workspaceId); }
@@ -228,11 +271,29 @@ FocusScope {
                                 const left = (selected.localX - lane.extent.left) * root.previewScale + inset;
                                 const right = left + selected.layoutWidth * root.previewScale;
                                 const edgePadding = 4 * root.previewScale;
-                                if (left < contentX + edgePadding) contentX = left - edgePadding;
-                                else if (right > contentX + width - edgePadding) contentX = right - width + edgePadding;
-                                contentX = Math.max(0, Math.min(contentWidth - width, contentX));
+                                const current = tapeScroll.running ? tapeScroll.to : contentX;
+                                let next = current;
+                                if (left < current + edgePadding) next = left - edgePadding;
+                                else if (right > current + width - edgePadding) next = right - width + edgePadding;
+                                next = Math.max(0, Math.min(contentWidth - width, next));
+                                tapeScroll.stop();
+                                if (!root.settled) contentX = next;
+                                else if (next !== contentX) {
+                                    tapeScroll.to = next;
+                                    tapeScroll.start();
+                                }
+                            }
+                            function stopScroll() { tapeScroll.stop(); }
+                            NumberAnimation {
+                                id: tapeScroll
+                                target: tape
+                                property: "contentX"
+                                duration: Appearance.animation.elementMoveFast.duration
+                                easing.type: Appearance.animation.elementMoveFast.type
+                                easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
                             }
                             Component.onCompleted: Qt.callLater(centerViewport)
+                            Connections { target: root; function onOpened() { tape.centerViewport(); } }
                             Connections { target: root; function onSelectedAddressChanged() { tape.revealSelection(); } }
                             Repeater {
                                 model: ScriptModel { values: lane.windows; objectProp: "address" }
@@ -243,6 +304,12 @@ FocusScope {
                                     readonly property real initialY: modelData.localY * root.previewScale
                                     property bool dragging: false
                                     property bool didDrag: false
+                                    property Item home: null
+                                    // A card dropped on another workspace fades where it was dropped
+                                    // until Hyprland reports the move and this lane drops it.
+                                    property bool sent: false
+                                    property real presence: sent ? 0 : 1
+                                    property real shown: 1
                                     windowData: modelData
                                     cornerRadius: root.windowRadius
                                     toplevel: ScrollingLayout.toplevelForAddress(modelData.address)
@@ -254,9 +321,66 @@ FocusScope {
                                     width: modelData.layoutWidth * root.previewScale
                                     height: modelData.layoutHeight * root.previewScale
                                     z: dragging ? 100 : modelData.floating ? 3 : modelData.hidden ? 0 : 1
-                                    opacity: modelData.hidden ? 0.45 : 1
-                                    states: State { when: window.dragging; ParentChange { target: window; parent: dragLayer } }
-                                    function resetPosition() { x = Qt.binding(() => initialX); y = Qt.binding(() => initialY); }
+                                    opacity: shown * presence * (modelData.hidden ? 0.45 : 1)
+                                    visible: presence > 0
+                                    enabled: !sent
+                                    // Layout changes glide into place; a dragged card follows the pointer directly.
+                                    Behavior on x { enabled: root.settled && !window.dragging; animation: root.moveAnimation.createObject(window) }
+                                    Behavior on y { enabled: root.settled && !window.dragging; animation: root.moveAnimation.createObject(window) }
+                                    Behavior on width { enabled: root.settled; animation: root.moveAnimation.createObject(window) }
+                                    Behavior on height { enabled: root.settled; animation: root.moveAnimation.createObject(window) }
+                                    Behavior on presence { animation: root.moveAnimation.createObject(window) }
+                                    NumberAnimation {
+                                        id: appear
+                                        target: window
+                                        property: "shown"
+                                        from: 0
+                                        to: 1
+                                        duration: Appearance.animation.elementMoveFast.duration
+                                        easing.type: Easing.OutCubic
+                                    }
+                                    // Cards arriving while the overview is open, such as a dropped window, fade in.
+                                    Component.onCompleted: {
+                                        updateCapture();
+                                        if (root.settled) appear.start();
+                                    }
+                                    Connections { target: GlobalStates; function onOverviewOpenChanged() { window.updateCapture(); } }
+                                    // Hyprland only copies windows that overlap their monitor. A pending request for a
+                                    // column off screen never completes and blocks direct scanout, so a closed overview
+                                    // drops those contexts and shows the last snapshot instead. Opening recreates any
+                                    // context without a frame, including one stopped by a failed capture.
+                                    function updateCapture() {
+                                        if (!GlobalStates.overviewOpen) {
+                                            capturing = modelData.viewFraction > 0;
+                                            if (dragging) returnHome();
+                                            return;
+                                        }
+                                        if (!captured) capturing = false;
+                                        capturing = true;
+                                    }
+                                    function beginDrag() {
+                                        const point = window.mapToItem(dragLayer, 0, 0);
+                                        home = window.parent;
+                                        dragging = true;
+                                        window.parent = dragLayer;
+                                        window.x = point.x;
+                                        window.y = point.y;
+                                    }
+                                    // Leave the drag layer at the current spot, then glide back into the lane.
+                                    function returnHome() {
+                                        if (home) {
+                                            const point = window.mapToItem(home, 0, 0);
+                                            window.parent = home;
+                                            window.x = point.x;
+                                            window.y = point.y;
+                                        }
+                                        sent = false;
+                                        dragging = false;
+                                        x = Qt.binding(() => initialX);
+                                        y = Qt.binding(() => initialY);
+                                    }
+                                    // Bring the card back if the window never left this workspace.
+                                    Timer { id: sentTimeout; interval: 1500; onTriggered: window.returnHome() }
                                     MouseArea {
                                         id: windowArea
                                         anchors.fill: parent
@@ -268,19 +392,22 @@ FocusScope {
                                         onPressed: { window.pressed = true; window.didDrag = false; root.endDrag(); }
                                         onPositionChanged: mouse => {
                                             if (!drag.active) return;
+                                            if (!window.dragging) window.beginDrag();
                                             window.didDrag = true;
-                                            window.dragging = true;
                                             root.updateDrag(windowArea.mapToItem(lanes, mouse.x, mouse.y));
                                         }
                                         onReleased: {
                                             window.pressed = false;
-                                            if (window.didDrag && root.dropWorkspace > 0 && root.dropWorkspace !== lane.workspaceId)
-                                                ScrollingLayout.moveWindowTo(root.monitorName, root.dropWorkspace, window.modelData.address, false);
-                                            window.dragging = false;
+                                            const target = root.dropWorkspace;
                                             root.endDrag();
-                                            Qt.callLater(window.resetPosition);
+                                            if (!window.dragging) return;
+                                            if (target > 0 && target !== lane.workspaceId) {
+                                                window.sent = true;
+                                                sentTimeout.restart();
+                                                ScrollingLayout.moveWindowTo(root.monitorName, target, window.modelData.address, false);
+                                            } else window.returnHome();
                                         }
-                                        onCanceled: { window.pressed = false; window.dragging = false; root.endDrag(); Qt.callLater(window.resetPosition); }
+                                        onCanceled: { window.pressed = false; root.endDrag(); if (window.dragging) window.returnHome(); }
                                         onClicked: mouse => {
                                             if (window.didDrag) return;
                                             if (mouse.button === Qt.MiddleButton)
@@ -300,18 +427,27 @@ FocusScope {
     }
     Item { id: dragLayer; anchors.fill: parent; z: 1000 }
     Timer { id: selectionRestore; interval: 220; onTriggered: root.selectWorkspace(root.activeId) }
-    // Dragging near the top or bottom edge scrolls to workspaces outside the three visible lanes.
-    Timer {
+    // Dragging near the top or bottom edge scrolls to workspaces outside the three visible lanes,
+    // once per rendered frame and faster the closer the pointer is to the edge.
+    FrameAnimation {
         id: dragScroll
-        property int direction: 0
-        interval: 16
-        repeat: true
+        property real speed: 0 // px per second
+        running: speed !== 0
         onTriggered: {
             const limit = Math.max(0, lanes.contentHeight - lanes.height);
-            const next = Math.max(0, Math.min(limit, lanes.contentY + direction * 10));
-            if (direction === 0 || next === lanes.contentY) { stop(); return; }
+            const next = Math.max(0, Math.min(limit, lanes.contentY + speed * frameTime));
+            if (next === lanes.contentY) return;
             lanes.contentY = next;
             root.dropWorkspace = root.laneAt(root.dragPoint);
         }
     }
+    NumberAnimation {
+        id: laneScroll
+        target: lanes
+        property: "contentY"
+        duration: Appearance.animation.elementMoveFast.duration
+        easing.type: Appearance.animation.elementMoveFast.type
+        easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+    }
+    Timer { id: settleTimer; running: true; interval: 300; onTriggered: root.settled = true }
 }
