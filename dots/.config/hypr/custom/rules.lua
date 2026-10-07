@@ -1,3 +1,10 @@
+-- Keep the wallpaper sharp behind any transparent Dolphin background.
+hl.window_rule({
+    name = "dolphin-no-blur",
+    match = { class = "^org\\.kde\\.dolphin$" },
+    no_blur = true,
+})
+
 -- Feishu Meetings uses separate XWayland windows for its meeting UI and
 -- sharing controls. Their observed initial title is "Feishu Meetings";
 -- WM_CLASS can be "Meeting" or empty. Keep them out of the tiling layout.

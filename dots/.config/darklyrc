@@ -1,2 +1,4 @@
 [Style]
 WidgetDrawShadow=false
+DolphinSidebarOpacity=95
+DolphinViewOpacity=95

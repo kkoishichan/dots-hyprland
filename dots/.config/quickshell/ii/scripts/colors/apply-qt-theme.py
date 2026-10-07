@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
 
 
@@ -55,9 +56,33 @@ def palette_roles(colors):
     return {"active_colors": active, "inactive_colors": active, "disabled_colors": disabled}
 
 
+def render_kvantum(config_home, colors):
+    # Render from the already selected palette: no second image analysis, hooks,
+    # or changes to GTK. Keep this inside the existing Qt-theming opt-in path.
+    with tempfile.TemporaryDirectory(prefix="qt-material-colors-") as temporary:
+        staging = Path(temporary)
+        render_data = staging / "colors.json"
+        render_data.write_text(json.dumps({"colors": {
+            name: {"default": {"hex": value}} for name, value in colors.items()
+        }}))
+        configuration = ["[config]", "version_check = false"]
+        for extension in ("kvconfig", "svg"):
+            source = config_home / "matugen/templates/qt" / f"MaterialAdw.{extension}"
+            output = staging / f"MaterialAdw.{extension}"
+            configuration.extend([f"[templates.{extension}]",
+                                  f"input_path = {json.dumps(str(source))}",
+                                  f"output_path = {json.dumps(str(output))}"])
+        config_path = staging / "matugen.toml"
+        config_path.write_text("\n".join(configuration) + "\n")
+        subprocess.run(["matugen", "--config", str(config_path), "json", str(render_data)], check=True)
+        return {extension: (staging / f"MaterialAdw.{extension}").read_text()
+                for extension in ("kvconfig", "svg")}
+
+
 def apply_theme(config_home, state_home, data_home):
     colors = json.loads((state_home / "quickshell/user/generated/colors.json").read_text())
     roles = palette_roles(colors)  # Validate everything before touching configuration.
+    kvantum_files = render_kvantum(config_home, colors)
     qt_path = config_home / "qt6ct/qt6ct.conf"
     palette_path = config_home / "qt6ct/colors/illogical-impulse.conf"
     qt = read_ini(qt_path)
@@ -66,9 +91,14 @@ def apply_theme(config_home, state_home, data_home):
         if not qt.has_section(section):
             qt.add_section(section)
     appearance = qt["Appearance"]
-    # Preserve the user's style, fonts and icons when migrating an existing desktop.
-    appearance.setdefault("style", kde.get("KDE", "widgetStyle", fallback="Darkly"))
-    appearance.setdefault("icon_theme", kde.get("Icons", "Theme", fallback="breeze-dark"))
+    # MaterialAdw is rendered by Matugen; preserve fonts and custom icon themes.
+    appearance["style"] = "kvantum"
+    brightness = sum(weight * int(colors["surface"][offset:offset + 2], 16)
+                     for weight, offset in ((0.2126, 1), (0.7152, 3), (0.0722, 5)))
+    palette_icons = "breeze-plus-dark" if brightness < 128 else "breeze-plus"
+    appearance.setdefault("icon_theme", kde.get("Icons", "Theme", fallback=palette_icons))
+    if appearance["icon_theme"] in ("breeze-plus", "breeze-plus-dark"):
+        appearance["icon_theme"] = palette_icons
     appearance["custom_palette"] = "true"
     appearance["color_scheme_path"] = str(palette_path)
     for target, source, fallback in (("general", "font", "Noto Sans,11"),
@@ -105,6 +135,14 @@ def apply_theme(config_home, state_home, data_home):
         kde.add_section("General")
     kde["General"]["ColorScheme"] = "IllogicalImpulse"
     kde["General"]["ColorSchemeHash"] = hashlib.sha1(scheme_text.encode()).hexdigest()
+    if not kde.has_section("KDE"):
+        kde.add_section("KDE")
+    kde["KDE"]["widgetStyle"] = "kvantum"
+    if not kde.has_section("Icons"):
+        kde.add_section("Icons")
+    kde["Icons"]["Theme"] = appearance["icon_theme"]
+    for extension, text in kvantum_files.items():
+        write_file(config_home / "Kvantum/MaterialAdw" / f"MaterialAdw.{extension}", text)
     write_file(palette_path, ini_text(palette))
     write_file(data_home / "color-schemes/IllogicalImpulse.colors", scheme_text)
     write_file(config_home / "kdeglobals", ini_text(kde))

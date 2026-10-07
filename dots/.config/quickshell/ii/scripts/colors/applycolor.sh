@@ -27,25 +27,39 @@ IFS=$'\n'
 colorlist=($colornames)     # Array of color names
 colorvalues=($colorstrings) # Array of color values
 
+render_terminal_template() (
+  local template="$1" destination="$2" temporary i
+  temporary=$(mktemp "${destination}.XXXXXX") || exit
+  trap 'rm -f -- "$temporary"' EXIT
+  cp "$template" "$temporary" || exit
+  for i in "${!colorlist[@]}"; do
+    sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$temporary" || exit
+  done
+  sed -i "s/\$alpha/$term_alpha/g" "$temporary" || exit
+  if [[ $(<"$temporary") =~ \$[[:alpha:]_][[:alnum:]_]* ]]; then
+    printf 'Incomplete terminal palette; keeping %s unchanged.\n' "$destination" >&2
+    exit 1
+  fi
+  chmod --reference="$template" "$temporary" || exit
+  # Kitty automatically reloads changed files. Publish only a complete theme.
+  mv -f -- "$temporary" "$destination" || exit
+)
+
 apply_kitty() {  
   # Check if terminal escape sequence template exists
   if [ ! -f "$SCRIPT_DIR/terminal/kitty-theme.conf" ]; then
     echo "Template file not found for Kitty theme. Skipping that."
     return
   fi
-  # Copy template
   mkdir -p "$STATE_DIR"/user/generated/terminal
-  cp "$SCRIPT_DIR/terminal/kitty-theme.conf" "$STATE_DIR"/user/generated/terminal/kitty-theme.conf
-  # Apply colors
-  for i in "${!colorlist[@]}"; do
-    sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/kitty-theme.conf
-  done
+  render_terminal_template "$SCRIPT_DIR/terminal/kitty-theme.conf" \
+    "$STATE_DIR/user/generated/terminal/kitty-theme.conf" || return
 
   # Reload
-  if ! pgrep -f kitty >/dev/null; then
+  if ! pgrep -x -u "$UID" kitty >/dev/null; then
     return
   fi
-  kill -SIGUSR1 $(pidof kitty)
+  pkill -SIGUSR1 -x -u "$UID" kitty
 }
 
 apply_anyterm() {
@@ -54,28 +68,24 @@ apply_anyterm() {
     echo "Template file not found for Terminal. Skipping that."
     return
   fi
-  # Copy template
   mkdir -p "$STATE_DIR"/user/generated/terminal
-  cp "$SCRIPT_DIR/terminal/sequences.txt" "$STATE_DIR"/user/generated/terminal/sequences.txt
-  # Apply colors
-  for i in "${!colorlist[@]}"; do
-    sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/sequences.txt
-  done
-
-  sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR/user/generated/terminal/sequences.txt"
+  render_terminal_template "$SCRIPT_DIR/terminal/sequences.txt" \
+    "$STATE_DIR/user/generated/terminal/sequences.txt" || return
 
   for file in /dev/pts/*; do
     if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then
+      # A stopped (Ctrl+S) or unresponsive terminal blocks writes indefinitely.
       {
-      cat "$STATE_DIR"/user/generated/terminal/sequences.txt >"$file"
-      } & disown || true
+      timeout --kill-after=1 2 cat "$STATE_DIR"/user/generated/terminal/sequences.txt >"$file"
+      } 2>/dev/null &
     fi
   done
+  wait
 }
 
 apply_term() {
-  apply_anyterm &
-  apply_kitty &
+  apply_kitty || return
+  apply_anyterm
 }
 
 # Check if terminal theming is enabled in config
@@ -83,11 +93,11 @@ CONFIG_FILE="$XDG_CONFIG_HOME/illogical-impulse/config.json"
 if [ -f "$CONFIG_FILE" ]; then
   enable_terminal=$(jq -r '.appearance.wallpaperTheming.enableTerminal' "$CONFIG_FILE")
   if [ "$enable_terminal" = "true" ]; then
-    apply_term &
+    apply_term
   fi
 else
   echo "Config file not found at $CONFIG_FILE. Applying terminal theming by default."
-  apply_term &
+  apply_term
 fi
 
 # Qt theming is handled by apply-qt-theme.py in switchwall.sh.
