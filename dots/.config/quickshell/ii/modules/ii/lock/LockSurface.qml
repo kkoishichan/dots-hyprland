@@ -124,14 +124,16 @@ MouseArea {
                 fill: 1
                 text: "fingerprint"
                 iconSize: Appearance.font.pixelSize.hugeass
-                color: Appearance.colors.colOnSurfaceVariant
+                color: root.context.fingerprintError ? Appearance.colors.colError : Appearance.colors.colOnSurfaceVariant
             }
         }
 
         ToolbarTextField {
             id: passwordBox
             Layout.rightMargin: -Layout.leftMargin
-            placeholderText: GlobalStates.screenUnlockFailed ? Translation.tr("Incorrect password") : Translation.tr("Enter password")
+            placeholderText: GlobalStates.screenUnlockFailed ? Translation.tr("Incorrect password")
+                : root.context.fingerprintHint || Translation.tr("Enter password")
+            placeholderTextColor: root.context.fingerprintError ? Appearance.colors.colError : Appearance.colors.colSubtext
 
             // Style
             clip: true

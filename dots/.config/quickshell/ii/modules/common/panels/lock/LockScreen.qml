@@ -68,8 +68,10 @@ Scope {
                 return;
             }
 
-            // Unlock the keyring if configured to do so
-            if (Config.options.lock.security.unlockKeyring) root.unlockKeyring(); // Async
+            // System-owned PAM profiles handle the keyring in the same auth
+            // transaction. The portable profile retains its legacy helper.
+            if (Config.options.lock.security.unlockKeyring && lockContext.pamConfigDirectory === "pam")
+                root.unlockKeyring(); // Async
 
             // Unlock the screen before exiting, or the compositor will display a
             // fallback lock you can't interact with.
@@ -107,6 +109,14 @@ Scope {
 
     IpcHandler {
         target: "lock"
+
+        function state(): string {
+            return JSON.stringify({
+                locked: GlobalStates.screenLocked,
+                fingerprintsConfigured: lockContext.fingerprintsConfigured,
+                pamConfigDirectory: lockContext.pamConfigDirectory
+            });
+        }
 
         function activate(): void {
             root.lock();

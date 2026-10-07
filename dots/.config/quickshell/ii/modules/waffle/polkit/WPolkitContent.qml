@@ -105,9 +105,19 @@ Rectangle {
                         text: PolkitService.cleanMessage
                     }
 
+                    WText {
+                        Layout.fillWidth: true
+                        visible: text.length > 0
+                        wrapMode: Text.Wrap
+                        text: PolkitService.flow?.supplementaryMessage ?? ""
+                        color: PolkitService.flow?.supplementaryIsError
+                            ? Looks.colors.danger : Looks.colors.fg
+                    }
+
                     WTextField {
                         id: inputField
                         Layout.fillWidth: true
+                        visible: PolkitService.interactionAvailable
                         focus: true
                         enabled: PolkitService.interactionAvailable
                         placeholderText: PolkitService.cleanPrompt
@@ -148,6 +158,7 @@ Rectangle {
                         colBackground: Looks.colors.bg1
                         horizontalAlignment: Text.AlignHCenter
                         text: Translation.tr("Yes")
+                        enabled: PolkitService.interactionAvailable
                         onClicked: PolkitService.submit(inputField.text)
                     }
                     WButton {

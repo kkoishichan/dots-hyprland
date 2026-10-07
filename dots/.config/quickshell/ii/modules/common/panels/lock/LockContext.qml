@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
+import "../../functions/FingerprintFeedback.js" as FingerprintFeedback
 
 Scope {
     id: root
@@ -21,6 +22,15 @@ Scope {
     property bool showFailure: false
     property bool fingerprintsConfigured: false
     property bool sleepInProgress: false
+    property string fingerprintStatus: ""
+    // pam_fprintd's max-tries bounds attempts per lock; only the next lock resets it.
+    property bool fingerprintExhausted: false
+    readonly property string fingerprintHint: FingerprintFeedback.message(fingerprintExhausted ? "exhausted" : fingerprintStatus)
+    readonly property bool fingerprintError: FingerprintFeedback.isError(fingerprintExhausted ? "exhausted" : fingerprintStatus)
+    property bool fingerprintAttemptFeedback: false
+    property bool fingerprintStopping: false
+    // A host can supply system-owned PAM profiles; portable defaults stay local.
+    readonly property string pamConfigDirectory: Quickshell.env("II_PAM_CONFIG_DIRECTORY") || "pam"
     property var targetAction: LockContext.ActionEnum.Unlock
     property bool alsoInhibitIdle: false
 
@@ -40,10 +50,30 @@ Scope {
         root.resetTargetAction();
         root.clearText();
         root.unlockInProgress = false;
+        clearFingerprintFeedback();
         if (stopFingerprint) {
+            root.fingerprintExhausted = false;
             fingerprintRetryTimer.stop();
             stopFingerPam();
         }
+    }
+
+    function clearFingerprintFeedback() {
+        fingerprintFeedbackTimer.stop();
+        root.fingerprintStatus = "";
+    }
+
+    function showFingerprintFeedback(code) {
+        if (!FingerprintFeedback.message(code) || root.sleepInProgress || !GlobalStates.screenLocked) return;
+        root.fingerprintAttemptFeedback = true;
+        root.fingerprintStatus = code;
+        fingerprintFeedbackTimer.restart();
+    }
+
+    Timer {
+        id: fingerprintFeedbackTimer
+        interval: 1000
+        onTriggered: root.fingerprintStatus = ""
     }
 
     Timer {
@@ -64,6 +94,7 @@ Scope {
 
     onCurrentTextChanged: {
         if (currentText.length > 0) {
+            clearFingerprintFeedback();
             showFailure = false;
             GlobalStates.screenUnlockFailed = false;
         }
@@ -72,6 +103,7 @@ Scope {
     }
 
     function tryUnlock(alsoInhibitIdle = false) {
+        clearFingerprintFeedback();
         root.alsoInhibitIdle = alsoInhibitIdle;
         root.unlockInProgress = true;
         pam.start();
@@ -79,13 +111,16 @@ Scope {
 
     function tryFingerUnlock() {
         if (!root.sleepInProgress && GlobalStates.screenLocked && root.fingerprintsConfigured
-                && !fingerPam.active) {
+                && !root.fingerprintExhausted && !fingerPam.active) {
+            root.fingerprintStopping = false;
+            root.fingerprintAttemptFeedback = false;
             fingerPam.start();
         }
     }
 
     onSleepInProgressChanged: {
         if (root.sleepInProgress) {
+            clearFingerprintFeedback();
             // fprintd must stop before sleep.target. Do not activate it again
             // while systemd is stopping it, including from a pending PAM retry.
             fingerprintRetryTimer.stop();
@@ -102,6 +137,7 @@ Scope {
     }
 
     function stopFingerPam() {
+        root.fingerprintStopping = true;
         if (fingerPam.active) {
             fingerPam.abort();
         }
@@ -130,7 +166,7 @@ Scope {
 
         // Keep password authentication separate from /etc/pam.d/login, which
         // also invokes pam_fprintd on this machine.
-        configDirectory: "pam"
+        configDirectory: root.pamConfigDirectory
         config: "password.conf"
 
         // pam_unix will ask for a response for the password prompt
@@ -157,17 +193,26 @@ Scope {
     PamContext {
         id: fingerPam
 
-        configDirectory: "pam"
+        configDirectory: root.pamConfigDirectory
         config: "fprintd.conf"
 
+        onPamMessage: {
+            if (!root.fingerprintStopping && !this.responseRequired)
+                root.showFingerprintFeedback(FingerprintFeedback.fromPamMessage(this.message, this.messageIsError));
+        }
+
         onCompleted: result => {
-            if (root.sleepInProgress) return;
+            if (root.sleepInProgress || root.fingerprintStopping) return;
             if (result == PamResult.Success && GlobalStates.screenLocked) {
                 fingerprintRetryTimer.stop();
                 root.unlocked(root.targetAction);
                 stopFingerPam();
+            } else if (result == PamResult.MaxTries || result == PamResult.Failed) {
+                // Restarting PAM would reset pam_fprintd's attempt limit.
+                if (GlobalStates.screenLocked) root.fingerprintExhausted = true;
             } else if (GlobalStates.screenLocked) {
-                // Retry after timeouts, mismatches, max tries, and device errors.
+                if (!root.fingerprintAttemptFeedback) root.showFingerprintFeedback("unavailable");
+                // Retry after timeouts and device errors.
                 fingerprintRetryTimer.restart();
             }
         }

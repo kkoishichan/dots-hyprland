@@ -69,9 +69,18 @@ Item {
             text: PolkitService.cleanMessage
         }
 
+        WindowDialogParagraph {
+            Layout.fillWidth: true
+            visible: text.length > 0
+            text: PolkitService.flow?.supplementaryMessage ?? ""
+            color: PolkitService.flow?.supplementaryIsError
+                ? Appearance.colors.colError : Appearance.colors.colOnSurfaceVariant
+        }
+
         MaterialTextField {
             id: inputField
             Layout.fillWidth: true
+            visible: PolkitService.interactionAvailable
             focus: true
             enabled: PolkitService.interactionAvailable
             placeholderText: PolkitService.cleanPrompt
