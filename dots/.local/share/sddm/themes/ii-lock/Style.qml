@@ -14,6 +14,11 @@ QtObject {
     property color error: config.error
     property color tintedBase: config.boolValue("extraBackgroundTint") ? mix(surface, primary, 0.99) : surface
     property color field: overlay(tintedBase, config.surface_container_low, config.realValue("contentOpacity"))
+    property color fieldHover: withAlpha(mix(field, text, 0.92), config.realValue("contentOpacity"))
+    property color fieldActive: withAlpha(mix(field, text, 0.85), config.realValue("contentOpacity"))
+    property color primaryHover: mix(primary, fieldHover, 0.87)
+    property color primaryActive: mix(primary, fieldActive, 0.7)
+    property color shadow: "#4d000000"
     property color scrim: Qt.rgba(tintedBase.r, tintedBase.g, tintedBase.b, config.realValue("backgroundOpacity") * 0.3)
     property string font: mainFontLoader.name || config.mainFont
     property string clockFont: clockFontLoader.name || config.clockFont
@@ -26,6 +31,9 @@ QtObject {
 
     function mix(a, b, amount) {
         return Qt.rgba(a.r * amount + b.r * (1 - amount), a.g * amount + b.g * (1 - amount), a.b * amount + b.b * (1 - amount), 1);
+    }
+    function withAlpha(color, opacity) {
+        return Qt.rgba(color.r, color.g, color.b, opacity);
     }
     function overlay(base, target, opacity) {
         const c = Qt.color(target);

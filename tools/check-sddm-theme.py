@@ -63,12 +63,25 @@ class Greeter(QObject):
     def reboot(self): self.power.append('reboot')
 
 class Keyboard(QObject):
+    currentLayoutChanged=Signal()
+    capsLockChanged=Signal()
+    def __init__(self): super().__init__(); self.current=0; self.caps=False
     @Property(bool, constant=True)
-    def enabled(self): return False
-    @Property(bool, constant=True)
-    def capsLock(self): return False
+    def enabled(self): return True
+    @Property(bool, notify=capsLockChanged)
+    def capsLock(self): return self.caps
+    @capsLock.setter
+    def capsLock(self, value):
+        self.caps=value
+        self.capsLockChanged.emit()
     @Property(list, constant=True)
-    def layouts(self): return []
+    def layouts(self): return [{'shortName':'us'}, {'shortName':'de'}]
+    @Property(int, notify=currentLayoutChanged)
+    def currentLayout(self): return self.current
+    @currentLayout.setter
+    def currentLayout(self, value):
+        self.current=value
+        self.currentLayoutChanged.emit()
 
 app=QGuiApplication([])
 theme=Path(sys.argv[1]).resolve()
@@ -78,7 +91,7 @@ for file in [theme/'theme.conf',theme/'theme.conf.user']:
     for key in ini.allKeys():config_values[key]=ini.value(key)
 SettingsType=type("ThemeSettings",(Settings,),{key:Property(str,lambda self,k=key:str(self.values[k]),constant=True) for key in config_values})
 config=SettingsType(config_values)
-users=Model(['koishi','second-user']);sessions=Model(['Hyprland','Hyprland (uwsm-managed)','Sway'])
+users=Model(['koishi','second-user']);sessions=Model(['Hyprland','Xfce'])
 greeter=Greeter();keyboard=Keyboard()
 view=QQuickView();view.setResizeMode(QQuickView.SizeRootObjectToView)
 for key,value in [('config',config),('userModel',users),('sessionModel',sessions),('sddm',greeter),('keyboard',keyboard),('primaryScreen',True)]:
@@ -91,21 +104,45 @@ password=root.findChild(QObject,'passwordField')
 user=root.findChild(QObject,'userSelector');session=root.findChild(QObject,'sessionSelector')
 assert all(x is not None for x in (password,user,session))
 assert password.property('activeFocus'),'Password input does not receive initial focus'
-user.setProperty('currentIndex',1);session.setProperty('currentIndex',2);QTest.qWait(30)
+assert root.findChild(QObject,'fingerprintIcon') is None
+assert password.property('placeholderText')=='输入密码'
+keyboard.capsLock=True;QTest.qWait(30)
+assert password.property('placeholderText')=='大写锁定已开启','Caps Lock must be visible before typing a password'
+keyboard.capsLock=False;QTest.qWait(30)
+assert password.property('placeholderText')=='输入密码'
+user.setProperty('currentIndex',1);session.setProperty('currentIndex',1);QTest.qWait(30)
 password.setProperty('text','test-only-password')
 QMetaObject.invokeMethod(password,'accepted')
-assert greeter.requests==[('second-user','test-only-password',2)],'Selected identity/session was not passed to SDDM'
+assert greeter.requests==[('second-user','test-only-password',1)],'Selected identity/session was not passed to SDDM'
 assert root.property('authenticating') and password.property('text')==''
 assert not password.property('enabled')
 QMetaObject.invokeMethod(root,'submit')
 assert len(greeter.requests)==1,'Duplicate login was submitted while authentication was pending'
 greeter.loginFailed.emit();QTest.qWait(350)
 assert not root.property('authenticating') and root.property('loginFailed')
+assert password.property('placeholderText')=='密码错误'
 assert password.property('text')=='' and password.property('enabled') and password.property('activeFocus')
 password.setProperty('text','retry')
 assert not root.property('loginFailed')
 QTest.keyClick(view,Qt.Key_Escape)
 assert password.property('text')==''
+# Empty passwords use the same authentication and failure feedback as any password.
+QMetaObject.invokeMethod(password,'accepted')
+assert greeter.requests[-1]==('second-user','',1)
+assert root.property('authenticating')
+assert password.property('placeholderText')=='输入密码'
+greeter.loginFailed.emit();QTest.qWait(350)
+assert password.property('enabled') and password.property('activeFocus')
+assert root.property('loginFailed'),'Empty password failure must show the normal password error'
+assert not root.property('authenticating')
+assert password.property('placeholderText')=='密码错误'
+# The layout control displays the selected code and cycles available layouts.
+layout_button=root.findChild(QObject,'keyboardButton')
+assert layout_button is not None and layout_button.property('visible')
+assert layout_button.property('labelText')=='US'
+QMetaObject.invokeMethod(layout_button,'clicked')
+assert keyboard.currentLayout==1 and layout_button.property('labelText')=='DE'
+QMetaObject.invokeMethod(layout_button,'clicked')
 # Opening the actual delegates catches role and popup errors hidden at startup.
 for selector in [user,session]:
     popup=selector.findChild(QObject,'choicePopup')
@@ -119,5 +156,11 @@ for name in ['sleepButton','powerButton','rebootButton']:
     QMetaObject.invokeMethod(button,'clicked')
 assert greeter.power==['sleep','poweroff','reboot'],greeter.power
 assert not errors,errors
+if len(sys.argv)>2:
+    # Save the idle login state, rather than the simulated authentication error.
+    root.setProperty('loginFailed',False)
+    user.setProperty('currentIndex',0);session.setProperty('currentIndex',0)
+    QTest.qWait(600)
+    assert view.grabWindow().save(sys.argv[2]),'Could not save theme preview'
 view.setSource(QUrl());view.close()
-print('PASS: selection, password submission/clearing, pending guard, failure/retry, Escape, popups and power routing (mock backend).')
+print('PASS: selection, password submission/clearing, pending guard, password failure/retry, empty password failure, Escape, keyboard layouts, popups and power routing (mock backend).')

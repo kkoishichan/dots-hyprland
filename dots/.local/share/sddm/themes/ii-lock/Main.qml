@@ -24,7 +24,7 @@ Rectangle {
         entranceScale = 1;
         password.forceActiveFocus();
     }
-    Behavior on entrance { NumberAnimation { duration: 200 } }
+    Behavior on entrance { NumberAnimation { duration: 200; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.34, 0.80, 0.34, 1.00, 1, 1] } }
     Behavior on entranceScale { NumberAnimation { duration: 500; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.42, 1.67, 0.21, 0.90, 1, 1] } }
     function submit() {
         if (authenticating || !selectedUser || sessions.currentIndex < 0) return;
@@ -67,12 +67,13 @@ Rectangle {
         GaussianBlur {
             anchors.fill: wallpaper
             source: wallpaper
+            scale: config.realValue("blurZoom")
             radius: config.realValue("blurRadius")
             samples: Math.ceil(radius) * 2 + 1
             visible: config.boolValue("blurEnabled")
             cached: true
         }
-        Rectangle { anchors.fill: parent; color: themeStyle.scrim }
+        Rectangle { anchors.fill: parent; color: themeStyle.scrim; visible: config.boolValue("blurEnabled") }
     }
     MouseArea {
         anchors.fill: parent
@@ -82,46 +83,75 @@ Rectangle {
     Column {
         id: clock
         anchors.centerIn: parent
-        spacing: 0
+        spacing: 10
         opacity: root.entrance
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: config.boolValue("clockVertical") ? Qt.formatTime(root.now, config.timeFormat).replace(":", "\n") : Qt.formatTime(root.now, config.timeFormat)
-            color: themeStyle.clockText
-            font.family: themeStyle.clockFont
-            font.pixelSize: config.realValue("clockSize")
-            font.weight: config.intValue("clockWeight")
-            font.variableAxes: ({"wdth": config.realValue("clockWidth"), "ROND": config.realValue("clockRoundness")})
-            horizontalAlignment: Text.AlignHCenter
-            style: Text.Raised
-            styleColor: "#66000000"
-            renderType: Text.NativeRendering
-        }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            topPadding: -16
-            visible: config.boolValue("showDate")
-            text: Qt.formatDate(root.now, config.dateFormat)
-            color: themeStyle.clockText
-            font.family: themeStyle.dateFont
-            font.pixelSize: 20
-            font.weight: 350
-            style: Text.Raised
-            styleColor: "#66000000"
-        }
-        Row {
+        ColumnLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 4
-            topPadding: 16
-            Symbol { styleData: themeStyle; text: "lock"; color: themeStyle.clockText; iconSize: 22 }
-            Text {
-                text: "已锁定"
-                color: themeStyle.clockText
-                font.family: themeStyle.dateFont
-                font.pixelSize: 20
-                font.weight: 350
+            ClockLabel {
+                id: clockTime
+                Layout.fillWidth: true
+                text: config.boolValue("clockVertical") ? Qt.locale().toString(root.now, config.timeFormat).split(":")[0].padStart(2, "0") : Qt.locale().toString(root.now, config.timeFormat)
+                font.family: themeStyle.clockFont
+                font.pixelSize: config.realValue("clockSize")
+                font.weight: config.intValue("clockWeight")
+                font.variableAxes: ({"wdth": config.realValue("clockWidth"), "ROND": config.realValue("clockRoundness")})
+            }
+            ClockLabel {
+                Layout.fillWidth: true
+                Layout.topMargin: -40
+                visible: config.boolValue("clockVertical")
+                text: Qt.locale().toString(root.now, config.timeFormat).split(":")[1]?.split(" ")[0].padStart(2, "0") ?? ""
+                font: clockTime.font
+            }
+            ClockLabel {
+                Layout.fillWidth: true
+                Layout.topMargin: -20
+                visible: config.boolValue("showDate")
+                text: Qt.locale().toString(root.now, config.dateFormat)
             }
         }
+        Item {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: config.boolValue("showLockedText")
+            implicitWidth: lockStatus.width + 10
+            implicitHeight: lockStatus.height + 10
+            Row {
+                id: lockStatus
+                anchors.centerIn: parent
+                spacing: 4
+                Symbol {
+                    anchors.verticalCenter: parent.verticalCenter
+                    styleData: themeStyle
+                    text: "lock"
+                    color: themeStyle.clockText
+                    iconSize: 22
+                    style: Text.Raised
+                    styleColor: themeStyle.shadow
+                }
+                ClockLabel {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "已锁定"
+                    font.pixelSize: 17
+                    font.weight: Font.Normal
+                }
+            }
+        }
+    }
+
+    component ClockLabel: Text {
+        color: themeStyle.clockText
+        font.family: themeStyle.dateFont
+        font.pixelSize: 20
+        font.weight: 350
+        font.styleName: ""
+        font.variableAxes: ({})
+        font.hintingPreference: Font.PreferDefaultHinting
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        renderType: Text.NativeRendering
+        style: Text.Raised
+        styleColor: themeStyle.shadow
     }
 
     Item {
@@ -144,12 +174,15 @@ Rectangle {
                 objectName: "passwordField"
                 implicitWidth: 200
                 Layout.fillHeight: true
+                Layout.rightMargin: -Layout.leftMargin
                 padding: 10
                 font.family: themeStyle.font
                 font.pixelSize: 15
                 font.variableAxes: ({ "wght": 450, "wdth": 100 })
-                placeholderText: root.authenticating ? "正在登录…" : root.loginFailed ? "密码错误" : keyboard.capsLock ? "大写锁定已开启" : "输入密码"
-                placeholderTextColor: root.loginFailed ? themeStyle.error : themeStyle.muted
+                font.hintingPreference: Font.PreferFullHinting
+                renderType: Text.NativeRendering
+                placeholderText: root.loginFailed ? "密码错误" : keyboard.capsLock ? "大写锁定已开启" : "输入密码"
+                placeholderTextColor: themeStyle.muted
                 color: config.boolValue("materialShapeChars") ? "transparent" : themeStyle.text
                 selectionColor: config.boolValue("materialShapeChars") ? "transparent" : themeStyle.secondary
                 selectedTextColor: config.boolValue("materialShapeChars") ? "transparent" : themeStyle.onSecondary
@@ -160,6 +193,10 @@ Rectangle {
                 clip: true
                 Accessible.name: "密码"
                 background: Rectangle { color: themeStyle.field; radius: height / 2 }
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: Rectangle { width: password.width - 8; height: password.height; radius: height / 2 }
+                }
                 cursorDelegate: Rectangle {
                     width: 2
                     visible: !config.boolValue("materialShapeChars")
@@ -173,14 +210,15 @@ Rectangle {
                 Keys.onEscapePressed: clear()
                 PasswordShapes {
                     anchors.fill: parent
-                    anchors.margins: 10
+                    anchors.leftMargin: password.padding
+                    anchors.rightMargin: password.padding
                     styleData: themeStyle
                     count: password.text.length
                     cursorPosition: password.cursorPosition
                     selectionStart: password.selectionStart
                     selectionEnd: password.selectionEnd
-                    cursorVisible: password.activeFocus && password.text.length > 0
-                    visible: config.boolValue("materialShapeChars") && password.text.length > 0
+                    cursorVisible: password.activeFocus && password.enabled
+                    visible: config.boolValue("materialShapeChars")
                 }
             }
             ActionButton {
@@ -192,13 +230,13 @@ Rectangle {
                 enabled: !root.authenticating && root.selectedUser.length > 0 && sessions.currentIndex >= 0
                 onClicked: root.submit()
             }
-            transform: Translate { id: shakeOffset }
             SequentialAnimation {
                 id: shake
-                NumberAnimation { target: shakeOffset; property: "x"; to: -8; duration: 50 }
-                NumberAnimation { target: shakeOffset; property: "x"; to: 8; duration: 90 }
-                NumberAnimation { target: shakeOffset; property: "x"; to: -5; duration: 75 }
-                NumberAnimation { target: shakeOffset; property: "x"; to: 0; duration: 100 }
+                NumberAnimation { target: password; property: "Layout.leftMargin"; to: -30; duration: 50 }
+                NumberAnimation { target: password; property: "Layout.leftMargin"; to: 30; duration: 50 }
+                NumberAnimation { target: password; property: "Layout.leftMargin"; to: -15; duration: 40 }
+                NumberAnimation { target: password; property: "Layout.leftMargin"; to: 15; duration: 40 }
+                NumberAnimation { target: password; property: "Layout.leftMargin"; to: 0; duration: 30 }
             }
         }
         Capsule {
@@ -235,7 +273,7 @@ Rectangle {
                 objectName: "sessionSelector"
                 styleData: themeStyle
                 symbol: "desktop_windows"
-                maximumWidth: 175
+                compact: true
                 model: sessionModel
                 currentIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
                 enabled: !root.authenticating
@@ -243,10 +281,13 @@ Rectangle {
                 onActivated: password.forceActiveFocus()
             }
             ActionButton {
+                objectName: "keyboardButton"
                 styleData: themeStyle
                 symbol: "keyboard_alt"
                 text: "切换键盘布局"
-                visible: keyboard.enabled && keyboard.layouts.length > 1
+                labelText: keyboard.layouts[keyboard.currentLayout]?.shortName?.toUpperCase() ?? ""
+                visible: keyboard.enabled && keyboard.layouts.length > 0
+                enabled: !root.authenticating
                 onClicked: keyboard.currentLayout = (keyboard.currentLayout + 1) % keyboard.layouts.length
             }
         }
@@ -256,7 +297,7 @@ Rectangle {
             anchors.left: mainCapsule.right
             anchors.leftMargin: 10
             anchors.top: mainCapsule.top
-            Battery { styleData: themeStyle; Layout.leftMargin: visible ? 8 : 0; Layout.rightMargin: visible ? 4 : 0 }
+            Battery { styleData: themeStyle; Layout.leftMargin: visible ? 10 : 0; Layout.rightMargin: visible ? 10 : 0 }
             ActionButton { objectName: "sleepButton"; styleData: themeStyle; symbol: "dark_mode"; text: "睡眠"; enabled: sddm.canSuspend && !root.authenticating; onClicked: sddm.suspend() }
             ActionButton { objectName: "powerButton"; styleData: themeStyle; symbol: "power_settings_new"; text: "关机"; enabled: sddm.canPowerOff && !root.authenticating; onClicked: sddm.powerOff() }
             ActionButton { objectName: "rebootButton"; styleData: themeStyle; symbol: "restart_alt"; text: "重启"; enabled: sddm.canReboot && !root.authenticating; onClicked: sddm.reboot() }

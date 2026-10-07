@@ -27,6 +27,6 @@ RowLayout {
             root.read(config.batteryStatusFile, function(value) { root.charging = value === "Charging"; });
         }
     }
-    Symbol { styleData: root.styleData; text: root.charging ? "bolt" : "battery_android_full"; color: root.percentage < 20 && !root.charging ? root.styleData.error : root.styleData.text }
-    Text { text: root.percentage; color: root.styleData.text; font.family: root.styleData.font; font.pixelSize: 15 }
+    Symbol { styleData: root.styleData; fill: 1; text: root.charging ? "bolt" : "battery_android_full"; color: root.percentage < 20 && !root.charging ? root.styleData.error : root.styleData.text }
+    Text { text: root.percentage; color: root.percentage < 20 && !root.charging ? root.styleData.error : root.styleData.text; font.family: root.styleData.font; font.pixelSize: 15; renderType: Text.NativeRendering }
 }

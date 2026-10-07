@@ -1,8 +1,12 @@
 # SDDM 登录主题
 
-`ii-lock` 将 illogical-impulse 的锁屏外观适配到 SDDM：模糊壁纸、居中数字时钟、底部三个胶囊、Material 密码形状及相同的动画曲线。用户和桌面选择位于左侧，电量和电源按钮位于右侧。认证、会话启动与电源操作使用 SDDM 原生接口。
+`ii-lock` 将 illogical-impulse 的锁屏外观适配到 SDDM：模糊壁纸、居中数字时钟、底部三个胶囊、Material 密码形状及相同的动画曲线。用户名、紧凑的桌面选择图标和键盘布局位于左侧，电量和电源按钮位于右侧。认证、会话启动与电源操作使用 SDDM 原生接口。
 
-主题使用 Qt 6 的 Qt Quick、Controls、Shapes、Effects 和 Qt5Compat.GraphicalEffects，不导入 Plasma 或 Quickshell 运行时。保留原有 SDDM PAM 配置及密钥环解锁流程。默认提供已安装的所有会话，包括 Hyprland、Hyprland (uwsm-managed) 和 Sway，并沿用 SDDM 记住的会话。
+尺寸与锁屏组件保持一致：密码框宽 200，胶囊高 56、内边距 8、间距 10、底边距 20；使用相同的圆角阴影、15 像素输入文字、图标填充规则和时钟/日期间距。背景分别使用工作区缩放和锁屏额外缩放，输入框叠加颜色按 `1 - contentTransparency` 计算，与锁屏的 `Appearance.qml` 一致。
+
+主题使用 Qt 6 的 Qt Quick、Controls、Shapes、Effects 和 Qt5Compat.GraphicalEffects，不导入 Plasma 或 Quickshell 运行时。会话列表由 SDDM 按实际安装情况提供，并沿用 SDDM 记住的会话。系统 PAM 配置及服务启用由本机单独维护，主题安装不修改认证栈。
+
+登录框使用“输入密码”提示，仅提供密码登录。已移除指纹图标和指纹请求状态；所有认证失败均恢复输入焦点，在原位置显示“密码错误”，并使用锁屏的输入框抖动动画。密码仍通过 SDDM 原生接口提交，不在主题内保存或验证。
 
 ## 构建和检查
 
@@ -15,7 +19,7 @@ python3 tools/check-sddm-theme.py /tmp/ii-sddm-preview/theme
 QML_XHR_ALLOW_FILE_READ=1 sddm-greeter-qt6 --test-mode --theme /tmp/ii-sddm-preview/theme
 ```
 
-构建目录必须是新目录。构建需要 Node.js、Python、Pillow 和 fontconfig；交互检查另外需要 PySide6。检查程序使用模拟 SDDM 后端，核对用户和会话传递、密码清除、重复提交保护、失败重试、Escape、选择菜单和电源路由。真实 SDDM 测试模式用于验证渲染；它不进行真实登录，密码提交后不会收到真正的认证结果。
+构建目录必须是新目录。构建需要 Node.js、Python、Pillow 和 fontconfig；交互检查另外需要 PySide6。检查程序使用模拟 SDDM 后端，核对用户和会话传递、密码清除、重复提交保护、密码失败重试、空密码失败、Escape、键盘布局切换、选择菜单和电源路由；可选的第二个参数指定检查截图路径。软件渲染检查不显示全部图形效果，背景模糊、阴影和圆角遮罩应在实际图形后端中确认。真实 SDDM 测试模式用于验证渲染；它不进行真实登录，密码提交后不会收到真正的认证结果。
 
 ## 安装与回退
 
@@ -23,7 +27,7 @@ QML_XHR_ALLOW_FILE_READ=1 sddm-greeter-qt6 --test-mode --theme /tmp/ii-sddm-prev
 pkexec python3 tools/sddm-theme.py install --bundle /tmp/ii-sddm-preview --user YOUR_USER
 ```
 
-安装时核对构建清单并备份既有主题和选择配置，然后写入 `/usr/share/sddm/themes/ii-lock/`，以 `sddm` 账户运行模拟交互检查，最后写入 `/etc/sddm.conf.d/zz-ii-lock.conf`（在 `kde_settings.conf` 之后加载）。不重启 SDDM；下次显示登录界面时使用新主题。旧 WhiteSur 主题继续保留。安装程序输出回退目录：
+安装时核对构建清单并备份既有主题和选择配置，先在 `/usr/share/sddm/themes/` 下的临时目录中组装新主题，以 `sddm` 账户运行模拟交互检查；检查通过后才替换 `/usr/share/sddm/themes/ii-lock/`，最后写入 `/etc/sddm.conf.d/zz-ii-lock.conf`。检查失败时正在使用的主题保持不变。不重启 SDDM；下次显示登录界面时使用新主题。此前手动安装的 WhiteSur 主题及重复的 KDE 主题选择配置已清理，软件包自带主题保留。安装程序输出回退目录：
 
 ```sh
 pkexec python3 tools/sddm-theme.py rollback --backup /var/lib/illogical-impulse/sddm-backups/TIMESTAMP

@@ -62,31 +62,44 @@ def install(bundle, username):
     if THEME.exists():
         shutil.copytree(THEME, backup / 'theme', symlinks=True)
     (backup / 'record.json').write_text(json.dumps({'override_existed': OVERRIDE.exists(), 'theme_existed': THEME.exists()}, indent=2) + '\n')
-    THEME.mkdir(parents=True, exist_ok=True)
-    for relative in manifest:
-        target = THEME / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        # A user-writable path must never be followed by the privileged installer.
-        if target.is_symlink():
-            target.unlink()
-        target.write_bytes((bundle / 'theme' / relative).read_bytes())
-        target.chmod(0o644)
-        os.chown(target, 0, 0)
-    ASSETS.mkdir(parents=True, exist_ok=True, mode=0o755)
-    os.chown(ASSETS, user.pw_uid, user.pw_gid)
-    subprocess.run(['runuser', '-u', username, '--', sys.executable, str(Path(user.pw_dir) / SYNC), '--output', str(ASSETS)], check=True)
-    link = THEME / 'theme.conf.user'
-    if link.is_symlink() or link.exists():
-        link.unlink()
-    link.symlink_to(ASSETS / 'theme.conf')
-    # Validate under the actual greeter account before selecting the new theme.
-    # The checker uses a mock backend, so it cannot log in or power off.
-    with tempfile.TemporaryDirectory(prefix='ii-sddm-validate-') as directory:
-        Path(directory).chmod(0o755)
-        checker = Path(directory) / 'check.py'
-        shutil.copyfile(REPO / 'tools/check-sddm-theme.py', checker)
-        checker.chmod(0o644)
-        subprocess.run(['runuser', '-u', 'sddm', '--', sys.executable, str(checker), str(THEME)], check=True)
+    THEME.parent.mkdir(parents=True, exist_ok=True)
+    # Stage beside the live theme: a selected theme must stay intact until the
+    # replacement has passed validation. The fresh root-owned directory also
+    # keeps the privileged copy from following any pre-existing symlink.
+    staged = Path(tempfile.mkdtemp(prefix='.ii-lock-', dir=THEME.parent))
+    try:
+        staged.chmod(0o755)
+        for relative in manifest:
+            target = staged / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((bundle / 'theme' / relative).read_bytes())
+            target.chmod(0o644)
+            os.chown(target, 0, 0)
+        ASSETS.mkdir(parents=True, exist_ok=True, mode=0o755)
+        os.chown(ASSETS, user.pw_uid, user.pw_gid)
+        subprocess.run(['runuser', '-u', username, '--', sys.executable, str(Path(user.pw_dir) / SYNC), '--output', str(ASSETS)], check=True)
+        (staged / 'theme.conf.user').symlink_to(ASSETS / 'theme.conf')
+        # Validate under the actual greeter account before selecting the new theme.
+        # The checker uses a mock backend, so it cannot log in or power off.
+        with tempfile.TemporaryDirectory(prefix='ii-sddm-validate-') as directory:
+            Path(directory).chmod(0o755)
+            checker = Path(directory) / 'check.py'
+            shutil.copyfile(REPO / 'tools/check-sddm-theme.py', checker)
+            checker.chmod(0o644)
+            subprocess.run(['runuser', '-u', 'sddm', '--', sys.executable, str(checker), str(staged)], check=True)
+        previous = staged.with_name(staged.name + '-previous')
+        if THEME.exists():
+            THEME.rename(previous)
+        try:
+            staged.rename(THEME)
+        except BaseException:
+            if previous.exists():
+                previous.rename(THEME)
+            raise
+        shutil.rmtree(previous, ignore_errors=True)
+    except BaseException:
+        shutil.rmtree(staged, ignore_errors=True)
+        raise
     OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
     temporary = OVERRIDE.with_suffix('.tmp')
     temporary.write_text('[General]\nGreeterEnvironment=QML_XHR_ALLOW_FILE_READ=1\n\n[Theme]\nCurrent=ii-lock\n')

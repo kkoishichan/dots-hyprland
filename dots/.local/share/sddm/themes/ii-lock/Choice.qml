@@ -7,36 +7,43 @@ ComboBox {
     required property var styleData
     property string symbol
     property real maximumWidth: 160
-    implicitWidth: Math.min(maximumWidth, label.implicitWidth + 48)
+    property bool compact: false
+    implicitWidth: compact ? 40 : Math.min(maximumWidth, label.implicitWidth + 48)
     implicitHeight: 40
     Layout.fillHeight: true
-    leftPadding: 34
-    rightPadding: 10
+    leftPadding: compact ? 0 : 34
+    rightPadding: compact ? 0 : 10
     font.family: styleData.font
     font.pixelSize: 15
+    font.variableAxes: ({ "wght": 450, "wdth": 100 })
     textRole: "name"
     valueRole: "name"
     hoverEnabled: true
+    Accessible.description: displayText
     indicator: Item {}
     background: Rectangle {
         radius: height / 2
-        color: root.hovered || root.activeFocus || root.down ? root.styleData.field : "transparent"
-        Behavior on color { ColorAnimation { duration: 180 } }
+        color: root.down ? root.styleData.fieldActive : root.hovered || root.activeFocus ? root.styleData.fieldHover : "transparent"
+        Behavior on color { ColorAnimation { duration: 200 } }
     }
     Symbol {
-        anchors.left: parent.left
-        anchors.leftMargin: 7
+        anchors.left: root.compact ? undefined : parent.left
+        anchors.leftMargin: root.compact ? 0 : 7
+        anchors.horizontalCenter: root.compact ? parent.horizontalCenter : undefined
         anchors.verticalCenter: parent.verticalCenter
         styleData: root.styleData
         text: root.symbol
+        fill: root.compact ? 0 : 1
     }
     contentItem: Text {
         id: label
+        visible: !root.compact
         text: root.displayText
         font: root.font
         color: root.styleData.text
         elide: Text.ElideRight
         verticalAlignment: Text.AlignVCenter
+        renderType: Text.NativeRendering
     }
     delegate: ItemDelegate {
         required property int index
