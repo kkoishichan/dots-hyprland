@@ -18,6 +18,8 @@ Singleton {
     property var pending: ({})
     property bool ready: false
     property var connectedNames: []
+    // The window most recently activated from the shell, e.g. an overview selection.
+    property string focusRequest: ""
     readonly property string statePath: FileUtils.trimFileProtocol(Directories.state + "/user/scrolling-workspaces.json")
     readonly property var monitorSnapshots: HyprlandData.monitors.map(m => {
         const live = Hyprland.monitors.values.find(v => v.name === m.name);
@@ -134,6 +136,8 @@ Singleton {
 
     function focusRelative(delta, name) {
         name = name || focusedName();
+        // Count from the current sequence; a stale empty row would shift the target.
+        normalize();
         const ids = workspaceIds(name);
         const index = Math.max(0, ids.indexOf(activeId(name)));
         focusAt(index + delta + 1, name);
@@ -143,8 +147,9 @@ Singleton {
         if (GlobalStates.screenLocked || !WorkspaceModel.validId(id)) return;
         protect(id);
         const selector = address ? `, window = ${luaString("address:" + address)}` : "";
-        Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${id}, follow = false${selector} })`);
-        if (follow) focusWorkspace(name, id);
+        // A native follow focuses the moved window; switching afterwards would
+        // focus the target workspace's previously focused window instead.
+        Hyprland.dispatch(`hl.dsp.window.move({ workspace = ${id}, follow = ${follow ? "true" : "false"}${selector} })`);
         schedule();
     }
 
@@ -157,6 +162,7 @@ Singleton {
 
     function sendRelative(delta, follow) {
         const name = focusedName();
+        normalize();
         const ids = workspaceIds(name);
         sendAt(Math.max(0, ids.indexOf(activeId(name))) + delta + 1, follow);
     }
@@ -196,6 +202,7 @@ Singleton {
 
     function focusWindow(name, address) {
         if (GlobalStates.screenLocked) return;
+        root.focusRequest = address;
         Hyprland.dispatch(`hl.dsp.focus({ monitor = ${luaString(name)} })`);
         Hyprland.dispatch(`hl.dsp.focus({ window = ${luaString("address:" + address)} })`);
     }

@@ -104,8 +104,9 @@ FocusScope {
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) activateSelection();
         else if (event.key === Qt.Key_Up || event.key === Qt.Key_PageUp) changeWorkspace(-1);
         else if (event.key === Qt.Key_Down || event.key === Qt.Key_PageDown) changeWorkspace(1);
-        else if (event.key === Qt.Key_Left) changeWindow(-1);
-        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) changeWindow(event.modifiers & Qt.ShiftModifier ? -1 : 1);
+        // Qt reports Shift+Tab as Backtab.
+        else if (event.key === Qt.Key_Left || event.key === Qt.Key_Backtab) changeWindow(-1);
+        else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) changeWindow(1);
         else if (event.key === Qt.Key_Insert) { ScrollingLayout.insertAbove(monitorName, selectedWorkspace); selectionRestore.restart(); }
         else return false;
         event.accepted = true;

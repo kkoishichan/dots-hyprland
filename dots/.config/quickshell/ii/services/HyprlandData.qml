@@ -126,8 +126,9 @@ Singleton {
     }
 
     // Recover stale snapshots after missed IPC events or monitor/suspend changes.
+    // Every event already refreshes, so this only matters while the desktop is idle.
     Timer {
-        interval: 5000
+        interval: 30000
         running: true
         repeat: true
         onTriggered: {

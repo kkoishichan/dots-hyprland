@@ -60,6 +60,51 @@ assert(state.orders.laptop.includes(2));
 update([output(0, 'laptop', 1), output(1, 'external', 2)], [workspace(1, 'laptop'), workspace(2, 'external'), workspace(12, 'external')]);
 assert(!state.orders.laptop.includes(2), 'Returning workspaces are removed from the temporary monitor sequence');
 
+// An entirely empty monitor uses its active workspace as the single bottom slot.
+const emptyMonitors = [output(0, 'laptop', 1), output(1, 'external', 2)];
+const savedEmpty = {
+    version: 1, orders: { laptop: [3, 1, 11], external: [2, 12] },
+    homes: { 1: 'laptop', 2: 'external', 3: 'laptop', 11: 'laptop', 12: 'external' }, nextId: 13,
+};
+const externalWindow = workspace(2, 'external');
+function reconcileEmpty(workspaces, pending = {}, monitors = emptyMonitors, previous = savedEmpty, clients = []) {
+    return plain(model.reconcile(previous, monitors, workspaces, clients, pending, 100));
+}
+for (const laptopWorkspaces of [[], [workspace(1, 'laptop', 0)],
+    [workspace(1, 'laptop', 0), workspace(3, 'laptop', 0), workspace(11, 'laptop', 0)]]) {
+    const snapshots = laptopWorkspaces.concat(externalWindow);
+    const empty = reconcileEmpty(snapshots);
+    assert.deepEqual(empty.orders.laptop, [1], 'Restoring or clearing an empty monitor must not retain a spare empty row');
+    assert.deepEqual(empty.orders.external, [2, 12], 'The occupied monitor retains its own bottom slot');
+    assert.equal(empty.homes[11], undefined, 'The discarded empty slot also leaves the saved home map');
+    assert.equal(empty.nextId, savedEmpty.nextId, 'Collapsing empty rows does not allocate a new ID');
+    assert.deepEqual(reconcileEmpty(snapshots, {}, emptyMonitors, empty), empty,
+        'Reloading the normalized sequence must be idempotent without switching workspaces');
+    const reopened = reconcileEmpty([workspace(1, 'laptop'), externalWindow], {}, emptyMonitors, empty);
+    assert.deepEqual(reopened.orders.laptop, [1, 13], 'Opening a window creates a new bottom slot');
+    assert.deepEqual(reconcileEmpty([externalWindow], {}, emptyMonitors, reopened).orders.laptop, [1],
+        'Closing the last window returns to one card while keeping the active workspace');
+}
+assert.deepEqual(reconcileEmpty([]).orders, { laptop: [1], external: [2] },
+    'Two empty monitors each retain their own active workspace');
+assert.deepEqual(reconcileEmpty([externalWindow], { 11: 1900 }).orders.laptop, [1, 11],
+    'An in-flight move or focus to the spare workspace survives until Hyprland confirms it');
+assert.deepEqual(reconcileEmpty([externalWindow], { 11: 99 }).orders.laptop, [1],
+    'An expired pending operation does not retain an extra card');
+assert.deepEqual(reconcileEmpty([externalWindow], {}, [output(0, 'laptop', 11), emptyMonitors[1]]).orders.laptop, [11],
+    'Confirming a switch to the bottom slot keeps that workspace alone');
+assert.deepEqual(reconcileEmpty([externalWindow], { 3: 1900 }).orders.laptop, [3, 1, 11],
+    'A pending insertion above the active workspace is preserved');
+assert.deepEqual(reconcileEmpty([externalWindow], {}, [output(0, 'laptop', 3), emptyMonitors[1]]).orders.laptop, [3],
+    'A confirmed insertion on an empty monitor becomes its sole workspace');
+assert.deepEqual(reconcileEmpty([workspace(1, 'laptop', 0, 'mail'), externalWindow]).orders.laptop, [1, 11],
+    'A named empty workspace retains a separate unnamed bottom slot');
+assert.deepEqual(reconcileEmpty([workspace(3, 'laptop'), externalWindow]).orders.laptop, [3, 1, 11],
+    'An active empty workspace is preserved while another workspace still contains windows');
+assert.deepEqual(reconcileEmpty([externalWindow], {}, emptyMonitors, savedEmpty,
+    [{ workspace: { id: 1 }, monitor: 0, mapped: true }]).orders.laptop, [1, 11],
+    'A mapped client prevents collapse even before workspace counts catch up');
+
 const monitor = { x: 320, y: 1440, width: 1920, height: 1200, scale: 1, reserved: [0, 40, 0, 0] };
 const windows = plain(geometry.windows([
     {address:'0xb', workspace:{id:1}, mapped:true, hidden:false, visible:false, at:[1320,1484],size:[900,1152]},

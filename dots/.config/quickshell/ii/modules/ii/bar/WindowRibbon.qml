@@ -119,9 +119,17 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         onClicked: root.toggleOverview()
+        // Touchpads send many small deltas; move one column per mouse-wheel notch.
+        property real wheelDelta: 0
         onWheel: event => {
             const delta = event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y;
-            if (delta !== 0) ScrollingLayout.focusColumn(root.monitorName, delta > 0 ? -1 : 1);
+            const threshold = Math.max(1, Config.options.interactions.scrolling.mouseScrollDeltaThreshold);
+            if (delta * wheelDelta < 0) wheelDelta = 0;
+            wheelDelta += delta;
+            while (Math.abs(wheelDelta) >= threshold) {
+                ScrollingLayout.focusColumn(root.monitorName, wheelDelta > 0 ? -1 : 1);
+                wheelDelta -= Math.sign(wheelDelta) * threshold;
+            }
             event.accepted = true;
         }
     }

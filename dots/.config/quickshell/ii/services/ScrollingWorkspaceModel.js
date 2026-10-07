@@ -72,6 +72,10 @@ function reconcile(state, monitors, workspaces, clients, pending, now) {
             if (ws.id !== bottom && !ids.includes(ws.id)) ids.push(ws.id);
             if (!homes[ws.id] || names.includes(homes[ws.id])) homes[ws.id] = mon.name;
         }
+        // On an entirely empty monitor, the active workspace replaces the saved spare slot.
+        // Keep a pending destination until the compositor confirms the move or focus.
+        if (ids.length === 1 && ids[0] === active && !occupied[active] && !named(active)
+            && (pending[bottom] || 0) <= now) bottom = ids.pop();
         if (bottom === null) {
             const last = ids[ids.length - 1];
             // An active empty workspace at the end is already the bottom empty workspace.

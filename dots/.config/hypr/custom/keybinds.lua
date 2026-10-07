@@ -7,6 +7,10 @@ local function scrolling(command)
     return hl.dsp.exec_cmd("qs -c $qsConfig ipc call scrolling " .. command)
 end
 
+-- Preserve pre-migration shortcuts, including the user's XF86Back/Forward
+-- bindings. Coordinated column layouts use the user's chosen SUPER+R; the separately
+-- requested numbered-workspace/Tab removals stay.
+
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), { description = "Edit user keybinds" })
 
 for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
@@ -21,7 +25,8 @@ replace("SUPER + ALT + Left", hl.dsp.layout("consume_or_expel prev"), "Column: M
 replace("SUPER + ALT + Right", hl.dsp.layout("consume_or_expel next"), "Column: Merge or split toward right")
 replace("SUPER + Semicolon", hl.dsp.layout("colresize -conf"), "Column: Previous width", true)
 replace("SUPER + Apostrophe", hl.dsp.layout("colresize +conf"), "Column: Next width", true)
-replace("SUPER + R", hl.dsp.layout("colresize +conf"), "Column: Cycle width")
+local column_layout = require("custom.column_layout")
+replace("SUPER + R", column_layout.cycle, "Columns: Cycle paired and triple layouts")
 replace("SUPER + CTRL + C", hl.dsp.layout("center"), "Column: Center")
 replace("SUPER + Space", hl.dsp.global("quickshell:searchToggle"), "Shell: Search")
 hl.unbind("SUPER + Tab")
@@ -57,6 +62,7 @@ for i, key in ipairs({ "Left", "Right", "BracketLeft", "BracketRight", "XF86Back
     local delta = i % 2 == 1 and -1 or 1
     replace("CTRL + SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))
 end
+-- These eight browser-key combinations predate the scrolling conversion.
 for i, key in ipairs({ "XF86Back", "XF86Forward" }) do
     local delta = i == 1 and -1 or 1
     replace("SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))

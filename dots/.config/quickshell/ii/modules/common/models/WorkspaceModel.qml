@@ -13,7 +13,7 @@ NestableObject {
     readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
     readonly property int currentWorkspaceId: liveMonitorData?.activeWorkspace?.id ?? monitor?.activeWorkspace?.id ?? 1
     // Match HyprlandData's supported range; temporary IDs must not shift the bar.
-    readonly property int activeWorkspace: currentWorkspaceId >= 1 && currentWorkspaceId <= 100 ? currentWorkspaceId : 1
+    readonly property int activeWorkspace: currentWorkspaceId >= 1 && currentWorkspaceId < 1000000 ? currentWorkspaceId : 1
     readonly property bool currentWorkspaceNotFake: activeWindow?.activated ?? false // Active empty workspace = fake. At least, that's how I like to call it.
     readonly property int fakeWorkspace: currentWorkspaceNotFake ? -9999 : activeWorkspace
     readonly property int shownCount: C.Config.options.bar.workspaces.shown

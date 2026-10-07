@@ -27,7 +27,12 @@ Scope {
     function restoreFullscreen() {
         const saved = savedFullscreen;
         savedFullscreen = null;
-        if (!saved || !HyprlandData.windowByAddress[saved.address]) return;
+        const window = saved ? HyprlandData.windowByAddress[saved.address] : null;
+        if (!window) return;
+        // Selecting another window on the same workspace takes focus under the
+        // fullscreen window (misc:on_focus_under_fullscreen); restoring first only flashes.
+        const target = HyprlandData.windowByAddress[ScrollingLayout.focusRequest];
+        if (target && target.address !== saved.address && target.workspace?.id === window.workspace?.id) return;
         Hyprland.dispatch("hl.dsp.window.fullscreen_state({ internal = " + saved.internal + ", client = " + saved.client + ", action = \"set\", window = " + ScrollingLayout.luaString("address:" + saved.address) + " })");
     }
     function focusSearch() {
@@ -66,8 +71,10 @@ Scope {
                 overviewScope.dontAutoCancelSearch = false;
                 inputMethodRestoreTimer.stop();
                 inputMethodActivationDelay.stop();
-                overviewScope.restoreFullscreen();
+                // Selections close the overview before focusing; decide after that request.
+                Qt.callLater(overviewScope.restoreFullscreen);
             } else {
+                ScrollingLayout.focusRequest = "";
                 if (!overviewScope.dontAutoCancelSearch) searchWidget.cancelSearch();
                 overviewScope.prepareSurface();
                 overviewScope.focusSearch();
@@ -89,8 +96,14 @@ Scope {
         onScreenChanged: { if (visible) Qt.callLater(overviewScope.focusSearch); }
 
         MouseArea {
+            id: dismissArea
             anchors.fill: parent
-            onPressed: GlobalStates.overviewOpen = false
+            // Only presses outside the search field and overview card dismiss it.
+            onPressed: mouse => {
+                const inside = [searchWidget, overviewLoader].some(item => item.visible
+                    && item.contains(item.mapFromItem(dismissArea, mouse.x, mouse.y)));
+                if (!inside) GlobalStates.overviewOpen = false;
+            }
         }
         Column {
             anchors { horizontalCenter: parent.horizontalCenter; top: parent.top }

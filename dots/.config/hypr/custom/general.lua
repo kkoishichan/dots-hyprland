@@ -40,6 +40,8 @@ hl.config({
         fullscreen_on_one_column = false,
         focus_fit_method = 1,
         follow_focus = true,
+        -- Hovering partial columns must not pan; explicit focus still follows.
+        follow_min_visible = 1.0,
         -- Three rounded 0.333 columns leave a visible sliver of the next column.
         explicit_column_widths = "0.3333333, 0.5, 0.6666667, 1.0",
         wrap_focus = false,
@@ -54,7 +56,12 @@ hl.gesture({ fingers = 3, direction = "swipe", action = "unset" })
 hl.gesture({ fingers = 4, direction = "horizontal", action = "unset" })
 hl.gesture({ fingers = 4, direction = "up", action = "unset" })
 hl.gesture({ fingers = 4, direction = "down", action = "unset" })
-hl.gesture({ fingers = 3, direction = "horizontal", action = "scroll_move" })
+-- Three-finger horizontal scrolling follows the fingers; a slow release settles at the
+-- nearest centered or edge stop in view, and a flick pages by edges (custom/column_swipe.lua).
+local column_swipe = require("custom.column_swipe")
+hl.gesture({ fingers = 3, direction = "horizontal", action = {
+    start = column_swipe.start, update = column_swipe.update, finish = column_swipe.finish,
+} })
 hl.gesture({ fingers = 3, direction = "up", action = function()
     hl.dispatch(hl.dsp.exec_cmd("qs -c $qsConfig ipc call scrolling step 1"))
 end })
