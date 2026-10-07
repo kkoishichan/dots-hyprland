@@ -47,7 +47,9 @@ def managed_files(repo):
         raise ValueError("Managed files must be nonempty and unique")
     for relative in paths:
         checked_path(repo / "dots", relative)
-        allowed_files = (".config/kitty/kitty.conf", ".config/xdg-desktop-portal/hyprland-portals.conf")
+        allowed_files = (".config/darklyrc", ".config/kitty/kitty.conf", ".config/xdg-desktop-portal/hyprland-portals.conf",
+                         ".config/Kvantum/kvantum.kvconfig",
+                         ".config/matugen/templates/qt/MaterialAdw.kvconfig", ".config/matugen/templates/qt/MaterialAdw.svg")
         if relative not in allowed_files and not relative.startswith((".config/hypr/", ".config/quickshell/ii/", ".local/share/sddm/themes/ii-lock/")):
             raise ValueError(f"Unsupported desktop path: {relative}")
     return paths
@@ -77,7 +79,9 @@ def capture_profile(existing, template, prefix=""):
                 raise ValueError(f"Expected preference object: {name}")
             result[key] = capture_profile(current, value, name + ".")
         else:
-            if type(current) is not type(value):
+            # Qt writes whole-number reals such as 0.0 as 0; bool stays distinct from numbers.
+            numbers = all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in (current, value))
+            if type(current) is not type(value) and not numbers:
                 raise ValueError(f"Preference type changed: {name}")
             result[key] = deepcopy(current)
     return result

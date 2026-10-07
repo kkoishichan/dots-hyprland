@@ -68,6 +68,16 @@ class DesktopConfigTest(unittest.TestCase):
         self.assertEqual(profile, {"bar": {"verbose": False}})
         self.assertNotIn("private-token", json.dumps(profile) + result.stdout + result.stderr)
 
+    def test_capture_accepts_whole_number_reals_but_not_booleans(self):
+        profile = self.repo / "config/scrolling-profile.json"
+        profile.write_text(json.dumps({"bar": {"verbose": True}, "appearance": {"transparency": 0.11}}))
+        self.settings.write_text(json.dumps({"bar": {"verbose": False}, "appearance": {"transparency": 0}}))
+        result = self.run_command("capture")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(profile.read_text())["appearance"]["transparency"], 0)
+        self.settings.write_text(json.dumps({"bar": {"verbose": 1}, "appearance": {"transparency": 0}}))
+        self.assertEqual(self.run_command("capture").returncode, 2)
+
     def test_dry_run_writes_nothing(self):
         before = {path: path.read_bytes() for path in self.root.rglob("*") if path.is_file()}
         self.assertEqual(self.run_command("deploy", "--dry-run").returncode, 0)

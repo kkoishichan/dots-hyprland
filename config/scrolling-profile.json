@@ -59,10 +59,10 @@
     "utilButtons": {
       "showColorPicker": false,
       "showDarkModeToggle": false,
-      "showKeyboardToggle": true,
+      "showKeyboardToggle": false,
       "showMicToggle": false,
       "showPerformanceProfileToggle": true,
-      "showScreenRecord": false,
+      "showScreenRecord": true,
       "showScreenSnip": true
     },
     "verbose": true,

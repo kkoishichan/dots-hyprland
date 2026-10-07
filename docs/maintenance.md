@@ -15,7 +15,7 @@ git remote add upstream https://github.com/end-4/dots-hyprland.git
 以仓库的 `dots/` 为配置来源，修改后运行检查，再应用到本机：
 
 ```sh
-node tests/scrolling-workspaces.cjs
+for test in tests/*.cjs; do node "$test" || break; done
 python3 -m unittest discover -s tests -p 'test_*.py'
 git diff --check
 python3 tools/desktop-config.py deploy --dry-run
@@ -51,7 +51,7 @@ git push origin main
 ```sh
 git fetch upstream
 git merge upstream/main
-node tests/scrolling-workspaces.cjs
+for test in tests/*.cjs; do node "$test" || break; done
 python3 -m unittest discover -s tests -p 'test_*.py'
 git diff --check
 ```
@@ -73,4 +73,4 @@ git push origin main
 
 维护脚本在写入前准备完整变更列表，并备份原文件。备份目录权限为 0700，`manifest.json` 记录目标目录、路径和原文件是否存在。需要回退时，根据该清单把备份文件复制回原位置；清单中 `existed: false` 的路径表示本次新增文件。回退后执行 `hyprctl reload`，Quickshell 会自动加载文件变更。
 
-原先设计过程的备份和截图继续保存在本机 `~/work/hypr-scroll-design/`；后续源码维护使用此 fork。
+原先设计过程的备份和截图继续保存在本机 `~/Projects/hypr-scroll-design/`；后续源码维护使用此 fork。

@@ -19,8 +19,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Dynamic workspaces and scrolling geometry
-        run: node tests/scrolling-workspaces.cjs
+      - name: Lua for the Hyprland column layout test
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends lua5.4
+      - name: Workspaces, geometry, launcher ranking and fingerprint feedback
+        run: for test in tests/*.cjs; do node "$test" || exit 1; done
       - name: Configuration capture, deployment and backup
         run: python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Whitespace and conflict markers
