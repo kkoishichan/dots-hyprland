@@ -27,11 +27,18 @@ ShellRoot {
         Hyprsunset.load()
         FirstRunExperience.load()
         ConflictKiller.load()
-        Cliphist.refresh()
-        Wallpapers.load()
-        Updates.load()
     }
 
+    // Directory scans and update checks must not compete with the first desktop frame.
+    Timer {
+        id: deferredStartup
+        interval: 1000
+        onTriggered: {
+            Cliphist.refresh()
+            Wallpapers.load()
+            Updates.load()
+        }
+    }
 
     // Panel families
     property list<string> families: ["ii", "waffle"]
@@ -41,20 +48,24 @@ ShellRoot {
         Config.options.panelFamily = families[nextIndex]
     }
 
-    component PanelFamilyLoader: LazyLoader {
+    component PanelFamilyLoader: Loader {
         required property string identifier
-        property bool extraCondition: true
-        active: Config.ready && Config.options.panelFamily === identifier && extraCondition
+        required property string fileName
+        active: Config.ready && Config.options.panelFamily === identifier
+        // An inline Component still compiles its entire import tree while inactive.
+        // Load only the selected family from its URL, including on family changes.
+        source: Qt.resolvedUrl("panelFamilies/" + fileName)
+        onLoaded: deferredStartup.restart()
     }
     
     PanelFamilyLoader {
         identifier: "ii"
-        component: IllogicalImpulseFamily {}
+        fileName: "IllogicalImpulseFamily.qml"
     }
 
     PanelFamilyLoader {
         identifier: "waffle"
-        component: WaffleFamily {}
+        fileName: "WaffleFamily.qml"
     }
 
 
@@ -74,4 +85,3 @@ ShellRoot {
         onPressed: root.cyclePanelFamily()
     }
 }
-

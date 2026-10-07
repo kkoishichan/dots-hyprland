@@ -62,7 +62,13 @@ Scope { // Scope
         root.sidebarContent = contentComponent.createObject(null, {
             "scopeRoot": root,
         });
-        sidebarLoader.item.contentParent.children = [root.sidebarContent];
+        root.attachContent();
+    }
+
+    // An asynchronously loaded sidebar may finish after this scope's completion.
+    function attachContent() {
+        const container = (root.detach ? detachedSidebarLoader : sidebarLoader).item?.contentParent;
+        if (container && root.sidebarContent) root.sidebarContent.parent = container;
     }
 
     onDetachChanged: {
@@ -71,18 +77,19 @@ Scope { // Scope
             sidebarContent.parent = null; // Detach content from sidebar
             sidebarLoader.active = false; // Unload sidebar
             detachedSidebarLoader.active = true; // Load detached window
-            detachedSidebarLoader.item.contentParent.children = [sidebarContent];
+            root.attachContent();
         } else {
             sidebarContent.parent = null; // Detach content from window
             detachedSidebarLoader.active = false; // Unload detached window
             sidebarLoader.active = true; // Load sidebar
-            sidebarLoader.item.contentParent.children = [sidebarContent];
+            root.attachContent();
         }
     }
 
     Loader {
         id: sidebarLoader
         active: true
+        onLoaded: root.attachContent()
         
         sourceComponent: PanelWindow { // Window
             id: panelWindow
@@ -172,6 +179,7 @@ Scope { // Scope
     Loader {
         id: detachedSidebarLoader
         active: false
+        onLoaded: root.attachContent()
 
         sourceComponent: FloatingWindow {
             id: detachedSidebarRoot

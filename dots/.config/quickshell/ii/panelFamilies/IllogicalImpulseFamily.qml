@@ -2,6 +2,8 @@ import QtQuick
 import Quickshell
 
 import qs.modules.common
+// Keep these imports for Quickshell's virtual module registration. URL loaders
+// below still avoid eagerly compiling each panel's component tree.
 import qs.modules.ii.background
 import qs.modules.ii.bar
 import qs.modules.ii.cheatsheet
@@ -24,24 +26,36 @@ import qs.modules.ii.verticalBar
 import qs.modules.ii.wallpaperSelector
 
 Scope {
-    PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
-    PanelLoader { component: Background {} }
-    PanelLoader { component: Cheatsheet {} }
-    PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
-    PanelLoader { component: Lock {} }
-    PanelLoader { component: MediaControls {} }
-    PanelLoader { component: NotificationPopup {} }
-    PanelLoader { component: OnScreenDisplay {} }
-    PanelLoader { component: OnScreenKeyboard {} }
-    PanelLoader { component: Overlay {} }
-    PanelLoader { component: Overview {} }
-    PanelLoader { component: Polkit {} }
-    PanelLoader { component: RegionSelector {} }
-    PanelLoader { component: ScreenCorners {} }
-    PanelLoader { component: ScreenTranslator {} }
-    PanelLoader { component: SessionScreen {} }
-    PanelLoader { component: SidebarLeft {} }
-    PanelLoader { component: SidebarRight {} }
-    PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
-    PanelLoader { component: WallpaperSelector {} }
+    component StartupPanel: Loader {
+        required property string fileName
+        property bool extraCondition: true
+        active: Config.ready && extraCondition
+        source: Qt.resolvedUrl("../modules/ii/" + fileName)
+        // URL loading also moves QML compilation off the GUI thread for async panels.
+        // Keep desktop surfaces and essential handlers synchronous; they provide the
+        // windows needed for asynchronous incubation to make progress.
+        asynchronous: false
+    }
+
+    StartupPanel { fileName: "background/Background.qml" }
+    StartupPanel { extraCondition: !Config.options.bar.vertical; fileName: "bar/Bar.qml" }
+    StartupPanel { extraCondition: Config.options.bar.vertical; fileName: "verticalBar/VerticalBar.qml" }
+    StartupPanel { fileName: "lock/Lock.qml" }
+    StartupPanel { fileName: "notificationPopup/NotificationPopup.qml" }
+    StartupPanel { fileName: "onScreenDisplay/OnScreenDisplay.qml" }
+    StartupPanel { fileName: "overview/Overview.qml" }
+    StartupPanel { fileName: "polkit/Polkit.qml" }
+    StartupPanel { fileName: "screenCorners/ScreenCorners.qml" }
+
+    StartupPanel { asynchronous: true; fileName: "cheatsheet/Cheatsheet.qml" }
+    StartupPanel { asynchronous: true; extraCondition: Config.options.dock.enable; fileName: "dock/Dock.qml" }
+    StartupPanel { asynchronous: true; fileName: "mediaControls/MediaControls.qml" }
+    StartupPanel { asynchronous: true; fileName: "onScreenKeyboard/OnScreenKeyboard.qml" }
+    StartupPanel { asynchronous: true; fileName: "overlay/Overlay.qml" }
+    StartupPanel { asynchronous: true; fileName: "regionSelector/RegionSelector.qml" }
+    StartupPanel { asynchronous: true; fileName: "screenTranslator/ScreenTranslator.qml" }
+    StartupPanel { asynchronous: true; fileName: "sessionScreen/SessionScreen.qml" }
+    StartupPanel { asynchronous: true; fileName: "sidebarLeft/SidebarLeft.qml" }
+    StartupPanel { asynchronous: true; fileName: "sidebarRight/SidebarRight.qml" }
+    StartupPanel { asynchronous: true; fileName: "wallpaperSelector/WallpaperSelector.qml" }
 }
