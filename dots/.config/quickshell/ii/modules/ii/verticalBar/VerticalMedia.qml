@@ -12,7 +12,7 @@ import qs.modules.ii.bar as Bar
 
 MouseArea {
     id: root
-    property bool borderless: Config.options.bar.borderless
+    property bool borderless: Config.layout.bar.borderless
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property string cleanedTitle: StringUtils.cleanMusicTitle(activePlayer?.trackTitle) || Translation.tr("No media")
 
@@ -28,7 +28,7 @@ MouseArea {
     }
 
     acceptedButtons: Qt.MiddleButton | Qt.BackButton | Qt.ForwardButton | Qt.RightButton | Qt.LeftButton
-    hoverEnabled: !Config.options.bar.tooltips.clickToShow
+    hoverEnabled: !Config.layout.bar.tooltips.clickToShow
     onPressed: (event) => {
         if (event.button === Qt.MiddleButton) {
             activePlayer.togglePlaying();

@@ -24,62 +24,6 @@
     "networkEthernet": "nm-connection-editor",
     "taskManager": "gnome-system-monitor"
   },
-  "bar": {
-    "autoHide": {
-      "enable": false,
-      "hoverRegionWidth": 2,
-      "pushWindows": false,
-      "showWhenPressingSuper": {
-        "delay": 140,
-        "enable": true
-      }
-    },
-    "borderless": false,
-    "bottom": false,
-    "cornerStyle": 0,
-    "floatStyleShadow": true,
-    "indicators": {
-      "notifications": {
-        "showUnreadCount": false
-      }
-    },
-    "resources": {
-      "alwaysShowCpu": true,
-      "alwaysShowSwap": true,
-      "cpuWarningThreshold": 90,
-      "memoryWarningThreshold": 95,
-      "swapWarningThreshold": 85
-    },
-    "screenList": [],
-    "showBackground": true,
-    "tooltips": {
-      "clickToShow": false
-    },
-    "topLeftIcon": "spark",
-    "utilButtons": {
-      "showColorPicker": false,
-      "showDarkModeToggle": false,
-      "showKeyboardToggle": false,
-      "showMicToggle": false,
-      "showPerformanceProfileToggle": true,
-      "showScreenRecord": true,
-      "showScreenSnip": true
-    },
-    "verbose": true,
-    "vertical": false,
-    "weather": {
-      "enable": false
-    },
-    "workspaces": {
-      "alwaysShowNumbers": false,
-      "monochromeIcons": true,
-      "numberMap": [],
-      "showAppIcons": true,
-      "showNumberDelay": 300,
-      "shown": 10,
-      "useNerdFont": false
-    }
-  },
   "conflictKiller": {
     "autoKillNotificationDaemons": false,
     "autoKillTrays": false
@@ -121,15 +65,6 @@
       "name": ""
     },
     "timeout": 7000
-  },
-  "overview": {
-    "centerIcons": true,
-    "columns": 5,
-    "enable": true,
-    "orderBottomUp": false,
-    "orderRightLeft": false,
-    "rows": 2,
-    "scale": 0.18
   },
   "panelFamily": "ii",
   "resources": {

@@ -4,9 +4,11 @@
 
 定制范围限于桌面和相关组件的配置，以及直接服务于这些配置的维护工具、测试与说明。系统引导、磁盘、账户认证、软件包清理和其他桌面环境的维护记录保存在本机。
 
-在 **设置 → 界面 → 桌面布局** 中选择滚动布局或平铺布局，即时切换布局、工作区管理、条栏、概览、快捷键和手势。默认使用滚动布局，选择保存在 `~/.config/illogical-impulse/config.json` 的 `desktopLayout` 字段，部署不会覆盖。
+在 **设置 → 界面 → 桌面布局** 中选择平铺布局或滚动布局，即时切换布局、工作区管理、条栏、概览、快捷键和手势。默认使用滚动布局，选择保存在 `~/.config/illogical-impulse/config.json` 的 `desktopLayout` 字段，部署不会覆盖。
 
-滚动模式下，窗口按列横向滚动，每台显示器独立维护纵向动态工作区。Win 与 Win＋Space 打开同一个简洁概览和搜索界面，条栏中间显示带滚动动画的窗口图标，鼠标点击图标时保持原地。原版模式恢复 dwindle 平铺、编号工作区、工作区圆点和网格概览。当前使用 Hyprland **0.56.2（Lua 配置）**。
+两种模式分别保存条栏和概览偏好，原生参数也分开配置；切换、调整和重新部署不会覆盖另一种模式的设置。
+
+滚动模式下，窗口按列横向滚动，每台显示器独立维护纵向动态工作区。Win 与 Win＋Space 打开同一个简洁概览和搜索界面，条栏中间显示带滚动动画的窗口图标，鼠标点击图标时保持原地。平铺模式恢复 dwindle 平铺、编号工作区、工作区圆点和网格概览。当前使用 Hyprland **0.56.2（Lua 配置）**。
 
 同时保留中文输入、字体、搜索索引、KDE 托盘共存、锁屏与休眠、飞书会议浮动窗口等现有修正。上游历史、安装器、许可证和署名均保留；上游项目介绍见 [.github/README.md](.github/README.md)。
 
@@ -15,7 +17,7 @@
 - [`dots/.config/hypr/`](dots/.config/hypr/)：Hyprland 配置和快捷键。
 - [`dots/.config/quickshell/ii/`](dots/.config/quickshell/ii/)：Quickshell 组件与服务。
 - [`config/managed-files.txt`](config/managed-files.txt)：此 fork 维护的定制文件清单。
-- [`config/scrolling-profile.json`](config/scrolling-profile.json)：条栏、概览、字体和语言等界面偏好，应用时合并到已有设置。
+- [`config/scrolling-profile.json`](config/scrolling-profile.json)：字体、语言等公共界面偏好，应用时合并到已有设置；两种模式的条栏和概览独立保存，不随部署覆盖。
 - [布局、快捷键和手势说明](docs/scrolling-layout.md)。
 - [本机同步、备份和更新上游](docs/maintenance.md)。
 - [配套桌面组件与依赖](docs/desktop-dependencies.md)。

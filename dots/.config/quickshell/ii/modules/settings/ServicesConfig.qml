@@ -236,17 +236,17 @@ ContentPage {
             ConfigSwitch {
                 buttonIcon: "assistant_navigation"
                 text: Translation.tr("Enable GPS based location")
-                checked: Config.options.bar.weather.enableGPS
+                checked: Config.layout.bar.weather.enableGPS
                 onCheckedChanged: {
-                    Config.options.bar.weather.enableGPS = checked;
+                    Config.layout.bar.weather.enableGPS = checked;
                 }
             }
             ConfigSwitch {
                 buttonIcon: "thermometer"
                 text: Translation.tr("Fahrenheit unit")
-                checked: Config.options.bar.weather.useUSCS
+                checked: Config.layout.bar.weather.useUSCS
                 onCheckedChanged: {
-                    Config.options.bar.weather.useUSCS = checked;
+                    Config.layout.bar.weather.useUSCS = checked;
                 }
                 StyledToolTip {
                     text: Translation.tr("It may take a few seconds to update")
@@ -257,21 +257,21 @@ ContentPage {
         MaterialTextArea {
             Layout.fillWidth: true
             placeholderText: Translation.tr("City name")
-            text: Config.options.bar.weather.city
+            text: Config.layout.bar.weather.city
             wrapMode: TextEdit.Wrap
             onTextChanged: {
-                Config.options.bar.weather.city = text;
+                Config.layout.bar.weather.city = text;
             }
         }
         ConfigSpinBox {
             icon: "av_timer"
             text: Translation.tr("Polling interval (m)")
-            value: Config.options.bar.weather.fetchInterval
+            value: Config.layout.bar.weather.fetchInterval
             from: 5
             to: 50
             stepSize: 5
             onValueChanged: {
-                Config.options.bar.weather.fetchInterval = value;
+                Config.layout.bar.weather.fetchInterval = value;
             }
         }
     }

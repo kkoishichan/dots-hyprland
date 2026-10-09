@@ -728,28 +728,28 @@ ContentPage {
         ConfigSwitch {
             buttonIcon: "check"
             text: Translation.tr("Enable")
-            checked: Config.options.overview.enable
+            checked: Config.layout.overview.enable
             onCheckedChanged: {
-                Config.options.overview.enable = checked;
+                Config.layout.overview.enable = checked;
             }
         }
         ConfigSwitch {
             buttonIcon: "center_focus_strong"
             text: Translation.tr("Center icons")
-            checked: Config.options.overview.centerIcons
+            checked: Config.layout.overview.centerIcons
             onCheckedChanged: {
-                Config.options.overview.centerIcons = checked;
+                Config.layout.overview.centerIcons = checked;
             }
         }
         ConfigSpinBox {
             icon: "loupe"
             text: Translation.tr("Scale (%)")
-            value: Config.options.overview.scale * 100
+            value: Config.layout.overview.scale * 100
             from: 1
             to: 100
             stepSize: 1
             onValueChanged: {
-                Config.options.overview.scale = value / 100;
+                Config.layout.overview.scale = value / 100;
             }
         }
         ConfigRow {
@@ -758,23 +758,23 @@ ContentPage {
             ConfigSpinBox {
                 icon: "splitscreen_bottom"
                 text: Translation.tr("Rows")
-                value: Config.options.overview.rows
+                value: Config.layout.overview.rows
                 from: 1
                 to: 20
                 stepSize: 1
                 onValueChanged: {
-                    Config.options.overview.rows = value;
+                    Config.layout.overview.rows = value;
                 }
             }
             ConfigSpinBox {
                 icon: "splitscreen_right"
                 text: Translation.tr("Columns")
-                value: Config.options.overview.columns
+                value: Config.layout.overview.columns
                 from: 1
                 to: 20
                 stepSize: 1
                 onValueChanged: {
-                    Config.options.overview.columns = value;
+                    Config.layout.overview.columns = value;
                 }
             }
         }
@@ -782,9 +782,9 @@ ContentPage {
             visible: Config.options.desktopLayout === "classic"
             uniform: true
             ConfigSelectionArray {
-                currentValue: Config.options.overview.orderRightLeft
+                currentValue: Config.layout.overview.orderRightLeft
                 onSelected: newValue => {
-                    Config.options.overview.orderRightLeft = newValue
+                    Config.layout.overview.orderRightLeft = newValue
                 }
                 options: [
                     {
@@ -800,9 +800,9 @@ ContentPage {
                 ]
             }
             ConfigSelectionArray {
-                currentValue: Config.options.overview.orderBottomUp
+                currentValue: Config.layout.overview.orderBottomUp
                 onSelected: newValue => {
-                    Config.options.overview.orderBottomUp = newValue
+                    Config.layout.overview.orderBottomUp = newValue
                 }
                 options: [
                     {

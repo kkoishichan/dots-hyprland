@@ -21,7 +21,7 @@ ButtonMouseArea {
         monitorName: root.QsWindow.window?.screen?.name ?? root.monitor?.name ?? ""
     }
 
-    property bool vertical: Config.options.bar.vertical
+    property bool vertical: Config.layout.bar.vertical
     property bool superPressAndHeld: false // Relevant modifications at bottom of file
 
     // BarContent still reads this value when sizing the workspace group.
@@ -224,7 +224,7 @@ ButtonMouseArea {
 
                     AppIcon {
                         id: appIcon
-                        property real cornerMargin: (!root.superPressAndHeld && Config.options?.bar.workspaces.showAppIcons && wsApp.biggestWindow) ? (root.workspaceButtonWidth - root.workspaceIconSize) / 2 : root.workspaceIconMarginShrinked
+                        property real cornerMargin: (!root.superPressAndHeld && Config.layout.bar.workspaces.showAppIcons && wsApp.biggestWindow) ? (root.workspaceButtonWidth - root.workspaceIconSize) / 2 : root.workspaceIconMarginShrinked
                         anchors {
                             bottom: parent.bottom
                             right: parent.right
@@ -260,13 +260,13 @@ ButtonMouseArea {
                             implicitWidth: appIcon.implicitWidth
                             implicitHeight: appIcon.implicitHeight
                             colorizationColor: Appearance.m3colors.darkmode ? Appearance.colors.colOnSecondaryContainer : Appearance.colors.colOnPrimary
-                            colorization: Config.options.bar.workspaces.monochromeIcons ? 0.8 : 0.5
+                            colorization: Config.layout.bar.workspaces.monochromeIcons ? 0.8 : 0.5
                             brightness: 0
                             source: appIcon
 
-                            opacity: !Config.options?.bar.workspaces.showAppIcons ? 0 : (wsApp.biggestWindow && !root.superPressAndHeld && Config.options?.bar.workspaces.showAppIcons) ? 1 : wsApp.biggestWindow ? root.workspaceIconOpacityShrinked : 0
+                            opacity: !Config.layout.bar.workspaces.showAppIcons ? 0 : (wsApp.biggestWindow && !root.superPressAndHeld && Config.layout.bar.workspaces.showAppIcons) ? 1 : wsApp.biggestWindow ? root.workspaceIconOpacityShrinked : 0
                             visible: opacity > 0
-                            scale: ((!root.superPressAndHeld && Config.options?.bar.workspaces.showAppIcons) ? root.workspaceIconSize : root.workspaceIconSizeShrinked) / root.workspaceIconSize
+                            scale: ((!root.superPressAndHeld && Config.layout.bar.workspaces.showAppIcons) ? root.workspaceIconSize : root.workspaceIconSizeShrinked) / root.workspaceIconSize
 
                             Behavior on opacity {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -325,7 +325,7 @@ ButtonMouseArea {
     /////////////////// Super key press handling ///////////////////
     Timer {
         id: superPressAndHeldTimer
-        interval: (Config?.options.bar.autoHide.showWhenPressingSuper.delay ?? 100)
+        interval: (Config.layout.bar.autoHide.showWhenPressingSuper.delay ?? 100)
         repeat: false
         onTriggered: {
             root.superPressAndHeld = true;
@@ -334,7 +334,7 @@ ButtonMouseArea {
     Connections {
         target: GlobalStates
         function onSuperDownChanged() {
-            if (!Config?.options.bar.autoHide.showWhenPressingSuper.enable)
+            if (!Config.layout.bar.autoHide.showWhenPressingSuper.enable)
                 return;
             if (GlobalStates.superDown)
                 superPressAndHeldTimer.restart();
@@ -378,7 +378,7 @@ ButtonMouseArea {
                 return true;
             if (GlobalStates.screenLocked)
                 return false;
-            if (Config.options?.bar.workspaces.alwaysShowNumbers && (!Config.options?.bar.workspaces.showAppIcons || !wsNum.hasBiggestWindow))
+            if (Config.layout.bar.workspaces.alwaysShowNumbers && (!Config.layout.bar.workspaces.showAppIcons || !wsNum.hasBiggestWindow))
                 return true;
             return false;
         }
@@ -399,10 +399,10 @@ ButtonMouseArea {
                 anchors.centerIn: parent
                 font {
                     pixelSize: Appearance.font.pixelSize.small - ((text.length - 1) * (text !== "10") * 2)
-                    family: Config.options?.bar.workspaces.useNerdFont ? Appearance.font.family.iconNerd : defaultFont
+                    family: Config.layout.bar.workspaces.useNerdFont ? Appearance.font.family.iconNerd : defaultFont
                 }
                 color: wsNum.contentColor
-                text: Config.options?.bar.workspaces.numberMap[wsNum.wsId - 1] || wsNum.wsId
+                text: Config.layout.bar.workspaces.numberMap[wsNum.wsId - 1] || wsNum.wsId
             }
         }
     }

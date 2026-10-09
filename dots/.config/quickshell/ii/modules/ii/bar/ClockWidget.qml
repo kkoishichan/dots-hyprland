@@ -6,8 +6,8 @@ import QtQuick.Layouts
 
 Item {
     id: root
-    property bool borderless: Config.options.bar.borderless
-    property bool showDate: Config.options.bar.verbose
+    property bool borderless: Config.layout.bar.borderless
+    property bool showDate: Config.layout.bar.verbose
     implicitWidth: rowLayout.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
 
@@ -40,7 +40,7 @@ Item {
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: !Config.options.bar.tooltips.clickToShow
+        hoverEnabled: !Config.layout.bar.tooltips.clickToShow
 
         ClockWidgetPopup {
             hoverTarget: mouseArea

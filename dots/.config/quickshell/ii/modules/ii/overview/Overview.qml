@@ -136,7 +136,7 @@ Scope {
             Loader {
                 id: overviewLoader
                 anchors.horizontalCenter: parent.horizontalCenter
-                active: (GlobalStates.overviewOpen || overviewScope.overviewLoaded) && (Config?.options.overview.enable ?? true)
+                active: (GlobalStates.overviewOpen || overviewScope.overviewLoaded) && (Config.layout.overview.enable ?? true)
                 visible: panelWindow.searchingText === ""
                 sourceComponent: DesktopLayout.scrolling ? scrollingComponent : classicComponent
                 Component { id: scrollingComponent; OverviewWidget {
@@ -167,7 +167,7 @@ Scope {
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             anchors { top: true; bottom: true; left: true; right: true }
             Loader {
-                active: DesktopLayout.scrolling && overviewScope.overviewLoaded && (Config?.options.overview.enable ?? true)
+                active: DesktopLayout.scrolling && overviewScope.overviewLoaded && (Config.layout.overview.enable ?? true)
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: searchWidget.height - 8
                 sourceComponent: OverviewWidget {

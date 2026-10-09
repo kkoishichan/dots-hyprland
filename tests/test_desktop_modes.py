@@ -34,6 +34,7 @@ QtObject { property bool overviewOpen: true; property bool screenLocked: false }
 import QtQml
 QtObject {
     property bool ready: true
+    property string runtimeLayout: ""
     property var options: QtObject { property string desktopLayout: "scrolling" }
     signal saved()
     signal loaded()

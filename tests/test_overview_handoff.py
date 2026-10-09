@@ -59,7 +59,9 @@ QtObject { property bool ready: true; property bool scrolling: true }
 """)
             write("modules/common/Config.qml", """pragma Singleton
 import QtQml
-QtObject { property var options: ({overview: {scale: 0.18}}) }
+QtObject {
+    function layoutFor(mode) { return {overview: {scale: 0.18}}; }
+}
 """)
             write("modules/common/Directories.qml", """pragma Singleton
 import QtQml
@@ -346,6 +348,15 @@ else:
                         "path: Hyprland.eventSocketPath": 'path: ' + json.dumps(str(base / "events.sock")),
                     }.items():
                         source = source.replace(old, new)
+                    if name == "ScrollingLayout":
+                        source = source.replace("Hyprland.dispatch(", "root.recordDispatch(")
+                        source = source.replace("    id: root\n", """    id: root
+    property var dispatches: []
+    function recordDispatch(command) {
+        dispatches = dispatches.concat([command]);
+        Hyprland.dispatch(command);
+    }
+""", 1)
                     write(f"services/{name}.qml", source)
             shell = """import QtQuick
 import QtQuick.Window
@@ -444,6 +455,7 @@ Scope {
                 token: card?.token, shown: card?.shown, visible: card?.visible, dragging: card?.dragging,
                 dropping: card?.dropping, requestId: card?.insertionRequestId,
                 enabled: ScrollingLayout.enabled ?? true, workspaceState: ScrollingLayout.state ?? null,
+                dispatches: ScrollingLayout.dispatches ?? [],
                 placing: ScrollingLayout.placingWindow ?? false, current: ScrollingLayout.currentInsertion ?? null,
                 awaiting: ScrollingLayout.awaitingInsertionSnapshots ?? [], queue: ScrollingLayout.windowInsertions ?? [],
                 focused: HyprlandData.focusedMonitorName ?? "", monitorRevision: HyprlandData.monitorSnapshotRevision ?? 0,

@@ -21,6 +21,8 @@ Singleton {
     // dynamic workspace management must stop before a mode change is applied.
     readonly property bool enabled: DesktopLayout.ready && DesktopLayout.scrolling
     property var connectedNames: []
+    property bool adoptCurrentHomes: false
+    Component.onCompleted: { if (!DesktopLayout.scrolling) adoptCurrentHomes = true; }
     // The window most recently activated from the shell, e.g. an overview selection.
     property string focusRequest: ""
     property bool placingWindow: false
@@ -45,6 +47,17 @@ Singleton {
     function normalize() {
         if (!enabled || !ready || GlobalStates.screenLocked || monitorSnapshots.length === 0) return;
         const names = monitorSnapshots.map(m => m.name);
+        if (adoptCurrentHomes) {
+            // Changes made in tiling mode are authoritative. They must not be
+            // mistaken for a disconnected output's workspaces returning home.
+            const homes = Object.assign({}, state.homes);
+            for (const ws of HyprlandData.workspaces)
+                if (names.includes(ws.monitor)) homes[ws.id] = ws.monitor;
+            root.state = Object.assign({}, state, { homes });
+            root.connectedNames = names;
+            root.adoptCurrentHomes = false;
+            save();
+        }
         const returning = names.filter(name => !connectedNames.includes(name));
         const now = Date.now();
         const waiting = {};
@@ -367,9 +380,16 @@ Singleton {
         target: GlobalStates
         function onScreenLockedChanged() { root.schedule(); }
     }
+    Connections {
+        target: DesktopLayout
+        // Config can finish loading after this singleton is constructed. A
+        // classic startup still counts even though enabled was already false.
+        function onScrollingChanged() { if (!DesktopLayout.scrolling) root.adoptCurrentHomes = true; }
+    }
     onMonitorSnapshotsChanged: schedule()
     onEnabledChanged: {
         if (enabled) { connectedNames = []; schedule(); return; }
+        adoptCurrentHomes = true;
         reconcileTimer.stop();
         pendingTimer.stop();
         insertionDelay.stop();

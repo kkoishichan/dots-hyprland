@@ -27,7 +27,7 @@ Item { // Bar content region
 
     // Background shadow
     Loader {
-        active: Config.options.bar.showBackground && Config.options.bar.cornerStyle === 1 && Config.options.bar.floatStyleShadow
+        active: Config.layout.bar.showBackground && Config.layout.bar.cornerStyle === 1 && Config.layout.bar.floatStyleShadow
         anchors.fill: barBackground
         sourceComponent: StyledRectangularShadow {
             anchors.fill: undefined // The loader's anchors act on this, and this should not have any anchor
@@ -39,11 +39,11 @@ Item { // Bar content region
         id: barBackground
         anchors {
             fill: parent
-            margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
+            margins: Config.layout.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
         }
-        color: Config.options.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
-        radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
-        border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
+        color: Config.layout.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
+        radius: Config.layout.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
+        border.width: Config.layout.bar.cornerStyle === 1 ? 1 : 0
         border.color: Appearance.colors.colLayer0Border
     }
 
@@ -125,7 +125,7 @@ Item { // Bar content region
         }
 
         VerticalBarSeparator {
-            visible: Config.options?.bar.borderless
+            visible: Config.layout.bar.borderless
         }
 
         BarGroup {
@@ -143,7 +143,7 @@ Item { // Bar content region
         }
 
         VerticalBarSeparator {
-            visible: Config.options?.bar.borderless
+            visible: Config.layout.bar.borderless
         }
 
         MouseArea {
@@ -161,13 +161,13 @@ Item { // Bar content region
                 anchors.fill: parent
 
                 ClockWidget {
-                    showDate: (Config.options.bar.verbose && root.useShortenedForm < 2)
+                    showDate: (Config.layout.bar.verbose && root.useShortenedForm < 2)
                     Layout.alignment: Qt.AlignVCenter
                     Layout.fillWidth: true
                 }
 
                 UtilButtons {
-                    visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
+                    visible: (Config.layout.bar.verbose && root.useShortenedForm === 0)
                     Layout.alignment: Qt.AlignVCenter
                 }
 
@@ -313,7 +313,7 @@ Item { // Bar content region
                 visible: root.useShortenedForm === 0
                 Layout.fillWidth: false
                 Layout.fillHeight: true
-                invertSide: Config?.options.bar.bottom
+                invertSide: Config.layout.bar.bottom
             }
 
             Item {
@@ -324,7 +324,7 @@ Item { // Bar content region
             // Weather
             Loader {
                 Layout.leftMargin: 4
-                active: Config.options.bar.weather.enable
+                active: Config.layout.bar.weather.enable
 
                 sourceComponent: BarGroup {
                     WeatherBar {}

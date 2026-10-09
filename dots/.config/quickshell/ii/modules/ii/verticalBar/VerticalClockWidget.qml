@@ -7,7 +7,7 @@ import qs.modules.ii.bar as Bar
 
 Item {
     id: root
-    property bool borderless: Config.options.bar.borderless
+    property bool borderless: Config.layout.bar.borderless
     implicitHeight: column.implicitHeight
     implicitWidth: Appearance.sizes.verticalBarWidth
 
@@ -51,7 +51,7 @@ Item {
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: !Config.options.bar.tooltips.clickToShow
+        hoverEnabled: !Config.layout.bar.tooltips.clickToShow
 
         Bar.ClockWidgetPopup {
             hoverTarget: mouseArea

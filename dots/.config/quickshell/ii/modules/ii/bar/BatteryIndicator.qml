@@ -6,7 +6,7 @@ import QtQuick.Layouts
 
 MouseArea {
     id: root
-    property bool borderless: Config.options.bar.borderless
+    property bool borderless: Config.layout.bar.borderless
     readonly property var chargeState: Battery.chargeState
     readonly property bool isCharging: Battery.isCharging
     readonly property bool isPluggedIn: Battery.isPluggedIn
@@ -16,7 +16,7 @@ MouseArea {
     implicitWidth: batteryProgress.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
 
-    hoverEnabled: !Config.options.bar.tooltips.clickToShow
+    hoverEnabled: !Config.layout.bar.tooltips.clickToShow
 
     ClippedProgressBar {
         id: batteryProgress

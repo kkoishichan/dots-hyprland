@@ -36,7 +36,7 @@ FocusScope {
     readonly property real verticalPadding: (Appearance.sizes.elevationMargin + framePadding) * 2
     readonly property int visibleLaneCount: Math.min(3, workspaceIds.length)
     readonly property real availableHeight: Math.max(1, (root.QsWindow.window?.height ?? viewport.height) - 120)
-    readonly property real previewHeight: Math.max(1, Math.floor(Math.min(260, viewport.height * Config.options.overview.scale,
+    readonly property real previewHeight: Math.max(1, Math.floor(Math.min(260, viewport.height * Config.layoutFor("scrolling").overview.scale,
         (availableHeight - verticalPadding - laneGap * 2) / 3 - windowMargin * 2)))
     readonly property real previewScale: previewHeight / viewport.height
     readonly property real laneHeight: previewHeight + windowMargin * 2

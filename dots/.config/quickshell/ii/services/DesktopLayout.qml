@@ -13,6 +13,7 @@ Singleton {
     property bool controller: false
     readonly property string requestedMode: Config.options.desktopLayout === "classic" ? "classic" : "scrolling"
     property string appliedMode: ""
+    onAppliedModeChanged: if (controller) Config.runtimeLayout = appliedMode;
     readonly property bool scrolling: (appliedMode || requestedMode) === "scrolling"
     readonly property bool ready: controller && Config.ready && appliedMode === requestedMode && !process.running && error === ""
     property bool pendingApply: false

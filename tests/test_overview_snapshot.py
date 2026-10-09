@@ -47,7 +47,7 @@ QtObject {
     property var m3colors: ({m3outline: "transparent"})
 }
 """)
-            write("common/Config.qml", "pragma Singleton\nimport QtQml\nQtObject { property var options: ({overview: {centerIcons: false}}) }")
+            write("common/Config.qml", "pragma Singleton\nimport QtQml\nQtObject { function layoutFor(mode) { return {overview: {centerIcons: false}}; } }")
             write("functions/ColorUtils.qml", "pragma Singleton\nimport QtQml\nQtObject { function transparentize(color, amount) { return color; } }")
             write("widgets/StyledImage.qml", "import QtQuick\nItem { property var source; property int fillMode; property bool asynchronous; property bool retainWhileLoading; property bool cache; property bool mipmap }")
             thumbnail = (SOURCE / "modules/ii/overview/OverviewWindow.qml").read_text()

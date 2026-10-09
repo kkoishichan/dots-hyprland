@@ -11,10 +11,10 @@ import qs.modules.common
 Singleton {
     id: root
     // 10 minute
-    readonly property int fetchInterval: Config.options.bar.weather.fetchInterval * 60 * 1000
-    readonly property string city: Config.options.bar.weather.city
-    readonly property bool useUSCS: Config.options.bar.weather.useUSCS
-    property bool gpsActive: Config.options.bar.weather.enableGPS
+    readonly property int fetchInterval: Config.layout.bar.weather.fetchInterval * 60 * 1000
+    readonly property string city: Config.layout.bar.weather.city
+    readonly property bool useUSCS: Config.layout.bar.weather.useUSCS
+    property bool gpsActive: Config.layout.bar.weather.enableGPS
 
     onUseUSCSChanged: {
         root.getData();

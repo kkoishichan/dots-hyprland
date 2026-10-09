@@ -44,7 +44,7 @@ Item { // Window
     property bool hovered: false
     property bool pressed: false
 
-    property bool centerIcons: Config.options.overview.centerIcons
+    property bool centerIcons: Config.layoutFor("classic").overview.centerIcons
     property real iconGapRatio: 0.06
     property real iconToWindowRatio: centerIcons ? 0.35 : 0.15
     property real xwaylandIndicatorToIconRatio: 0.35

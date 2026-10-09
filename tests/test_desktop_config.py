@@ -85,6 +85,22 @@ class DesktopConfigTest(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertEqual(self.run_command("status").returncode, 1)
 
+    def test_deploy_preserves_selected_mode_and_both_layout_profiles(self):
+        settings = json.loads(self.settings.read_text())
+        settings.update(desktopLayout="classic", desktopLayouts={"version": 1,
+            "classic": {"bar": {"bottom": True}, "overview": {"scale": 0.24}},
+            "scrolling": {"bar": {"bottom": False}, "overview": {"scale": 0.14}}})
+        self.settings.write_text(json.dumps(settings))
+        result = self.run_command("deploy")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        deployed = json.loads(self.settings.read_text())
+        self.assertEqual(deployed["desktopLayout"], settings["desktopLayout"])
+        self.assertEqual(deployed["desktopLayouts"], settings["desktopLayouts"])
+        # The actual shared profile must not contain legacy or mode-specific
+        # preference keys that could reset a user's two profiles on deployment.
+        actual = json.loads((SCRIPT.parents[1] / "config/scrolling-profile.json").read_text())
+        self.assertFalse({"desktopLayout", "desktopLayouts", "bar", "overview"} & actual.keys())
+
     def test_missing_source_and_path_escape_fail_before_writes(self):
         original = (self.home / self.relative).read_bytes()
         manifest = self.repo / "config/managed-files.txt"

@@ -19,14 +19,14 @@ Item {
     readonly property string monitorName: screen?.name ?? ""
     readonly property int nativeWorkspaceId: monitorData?.activeWorkspace?.id ?? monitor?.activeWorkspace?.id ?? 1
     readonly property int effectiveActiveWorkspaceId: nativeWorkspaceId >= 1 && nativeWorkspaceId < 1000000 ? nativeWorkspaceId : 1
-    readonly property int workspacesShown: Config.options.overview.rows * Config.options.overview.columns
+    readonly property int workspacesShown: Config.layoutFor("classic").overview.rows * Config.layoutFor("classic").overview.columns
     readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / workspacesShown)
     property bool monitorIsFocused: HyprlandData.focusedMonitorName === monitorName
     property var windows: HyprlandData.windowList
     property var windowByAddress: HyprlandData.windowByAddress
     property var windowAddresses: HyprlandData.addresses
     property var monitorData: HyprlandData.monitors.find(m => m.name === monitorName)
-    property real scale: Config.options.overview.scale
+    property real scale: Config.layoutFor("classic").overview.scale
     property color activeBorderColor: Appearance.colors.colSecondary
 
     property real workspaceImplicitWidth: (monitorData?.transform % 2 === 1) ? 
@@ -53,8 +53,8 @@ Item {
 
     function geometry() {
         const result = [];
-        for (let row = 0; row < Config.options.overview.rows; row++) {
-            for (let col = 0; col < Config.options.overview.columns; col++) {
+        for (let row = 0; row < Config.layoutFor("classic").overview.rows; row++) {
+            for (let col = 0; col < Config.layoutFor("classic").overview.columns; col++) {
                 const point = workspaceColumnLayout.mapToItem(root,
                     col * (workspaceImplicitWidth + workspaceSpacing), row * (workspaceImplicitHeight + workspaceSpacing));
                 result.push({ workspace: workspaceGroup * workspacesShown + getWsInCell(row, col),
@@ -66,17 +66,17 @@ Item {
     
     function getWsRow(ws) {
         // 1-indexed workspace, 0-indexed row
-        var normalRow = Math.floor((ws - 1) / Config.options.overview.columns) % Config.options.overview.rows;
-        return (Config.options.overview.orderBottomUp ? Config.options.overview.rows - normalRow - 1 : normalRow);
+        var normalRow = Math.floor((ws - 1) / Config.layoutFor("classic").overview.columns) % Config.layoutFor("classic").overview.rows;
+        return (Config.layoutFor("classic").overview.orderBottomUp ? Config.layoutFor("classic").overview.rows - normalRow - 1 : normalRow);
     }
     function getWsColumn(ws) {
         // 1-indexed workspace, 0-indexed column
-        var normalCol = (ws - 1) % Config.options.overview.columns;
-        return (Config.options.overview.orderRightLeft ? Config.options.overview.columns - normalCol - 1 : normalCol);
+        var normalCol = (ws - 1) % Config.layoutFor("classic").overview.columns;
+        return (Config.layoutFor("classic").overview.orderRightLeft ? Config.layoutFor("classic").overview.columns - normalCol - 1 : normalCol);
     }
     function getWsInCell(ri, ci) {
         // 1-indexed workspace, 0-indexed row and column index
-        return (Config.options.overview.orderBottomUp ? Config.options.overview.rows - ri - 1 : ri) * Config.options.overview.columns + (Config.options.overview.orderRightLeft ? Config.options.overview.columns - ci - 1 : ci) + 1
+        return (Config.layoutFor("classic").overview.orderBottomUp ? Config.layoutFor("classic").overview.rows - ri - 1 : ri) * Config.layoutFor("classic").overview.columns + (Config.layoutFor("classic").overview.orderRightLeft ? Config.layoutFor("classic").overview.columns - ci - 1 : ci) + 1
     }
 
     StyledRectangularShadow {
@@ -101,14 +101,14 @@ Item {
             spacing: workspaceSpacing
             
             Repeater {
-                model: Config.options.overview.rows
+                model: Config.layoutFor("classic").overview.rows
                 delegate: Row {
                     id: row
                     required property int index
                     spacing: workspaceSpacing
 
                     Repeater { // Workspace repeater
-                        model: Config.options.overview.columns
+                        model: Config.layoutFor("classic").overview.columns
                         Rectangle { // Workspace
                             id: workspace
                             required property int index
@@ -123,9 +123,9 @@ Item {
                             implicitHeight: root.workspaceImplicitHeight
                             color: hoveredWhileDragging ? hoveredWorkspaceColor : defaultWorkspaceColor
                             property bool workspaceAtLeft: colIndex === 0
-                            property bool workspaceAtRight: colIndex === Config.options.overview.columns - 1
+                            property bool workspaceAtRight: colIndex === Config.layoutFor("classic").overview.columns - 1
                             property bool workspaceAtTop: row.index === 0
-                            property bool workspaceAtBottom: row.index === Config.options.overview.rows - 1
+                            property bool workspaceAtBottom: row.index === Config.layoutFor("classic").overview.rows - 1
                             topLeftRadius: (workspaceAtLeft && workspaceAtTop) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                             topRightRadius: (workspaceAtRight && workspaceAtTop) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                             bottomLeftRadius: (workspaceAtLeft && workspaceAtBottom) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
@@ -220,9 +220,9 @@ Item {
                     // Radius
                     property real minRadius: Appearance.rounding.small
                     property bool workspaceAtLeft: workspaceColIndex === 0
-                    property bool workspaceAtRight: workspaceColIndex === Config.options.overview.columns - 1
+                    property bool workspaceAtRight: workspaceColIndex === Config.layoutFor("classic").overview.columns - 1
                     property bool workspaceAtTop: workspaceRowIndex === 0
-                    property bool workspaceAtBottom: workspaceRowIndex === Config.options.overview.rows - 1
+                    property bool workspaceAtBottom: workspaceRowIndex === Config.layoutFor("classic").overview.rows - 1
                     property bool workspaceAtTopLeft: (workspaceAtLeft && workspaceAtTop) 
                     property bool workspaceAtTopRight: (workspaceAtRight && workspaceAtTop) 
                     property bool workspaceAtBottomLeft: (workspaceAtLeft && workspaceAtBottom) 
@@ -318,9 +318,9 @@ Item {
                 height: root.workspaceImplicitHeight
                 color: "transparent"
                 property bool workspaceAtLeft: colIndex === 0
-                property bool workspaceAtRight: colIndex === Config.options.overview.columns - 1
+                property bool workspaceAtRight: colIndex === Config.layoutFor("classic").overview.columns - 1
                 property bool workspaceAtTop: rowIndex === 0
-                property bool workspaceAtBottom: rowIndex === Config.options.overview.rows - 1
+                property bool workspaceAtBottom: rowIndex === Config.layoutFor("classic").overview.rows - 1
                 topLeftRadius: (workspaceAtLeft && workspaceAtTop) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                 topRightRadius: (workspaceAtRight && workspaceAtTop) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius
                 bottomLeftRadius: (workspaceAtLeft && workspaceAtBottom) ? root.largeWorkspaceRadius : root.smallWorkspaceRadius

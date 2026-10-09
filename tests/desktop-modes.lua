@@ -37,7 +37,9 @@ for _, scrolling in ipairs({ true, false, true }) do
     package.loaded["hyprland.lib"] = nil
     package.loaded["hyprland.variables"] = nil
     package.loaded["custom.variables"] = nil
-    package.loaded["custom.desktop_mode"] = { scrolling = scrolling }
+    package.loaded["custom.desktop_mode"] = { scrolling = scrolling, mode = scrolling and "scrolling" or "classic" }
+    package.loaded["custom.layouts.classic"] = nil
+    package.loaded["custom.layouts.scrolling"] = nil
     package.loaded["custom.overview_drop"] = {
         configure_workspace_animation = hl.animation,
         watch_overview = function() watching = true end,
@@ -56,6 +58,8 @@ for _, scrolling in ipairs({ true, false, true }) do
         end
     end
     if scrolling then
+        assert(type(config.general.gaps_out) == "table" and config.general.gaps_out.left == 2)
+        assert(config.scrolling.follow_min_visible == 1.0)
         assert(not bindings["SUPER + Tab"])
         assert(not bindings["SUPER + 1"])
         assert(bindings["SUPER + R"])
@@ -65,6 +69,8 @@ for _, scrolling in ipairs({ true, false, true }) do
         assert(gestures["4:horizontal"].action == "unset")
         assert(animations.workspaces.style == "slidevert")
     else
+        assert(config.general.gaps_out == 4, "Scrolling gaps leaked into tiling mode")
+        assert(not watching, "Scrolling surface hooks leaked into tiling mode")
         assert(bindings["SUPER + Tab"])
         assert(bindings["SUPER + 1"])
         assert(not bindings["SUPER + R"], "No scrolling preset in classic mode")

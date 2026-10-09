@@ -9,6 +9,38 @@ Singleton {
     id: root
     property string filePath: Directories.shellConfigPath
     property alias options: configOptionsJsonAdapter
+    // Settings edits the requested mode. The running shell follows the applied
+    // native mode until its reload completes, so an old surface never uses the
+    // other mode's preferences during the handoff.
+    property string runtimeLayout: ""
+    readonly property var layout: layoutFor(runtimeLayout || options.desktopLayout)
+
+    function layoutFor(mode) {
+        return mode === "classic" ? options.desktopLayouts.classic : options.desktopLayouts.scrolling;
+    }
+    function copyKnown(target, values) {
+        if (!values || typeof values !== "object") return;
+        for (const key of Object.keys(values)) {
+            if (target[key] === undefined) continue;
+            const value = values[key];
+            if (value && typeof value === "object" && !Array.isArray(value)) copyKnown(target[key], value);
+            else target[key] = value;
+        }
+    }
+    function migrateLayouts() {
+        if (options.desktopLayouts.version >= 1) return;
+        // Seed independent objects from the user's existing preferences. A
+        // partial new profile takes priority over legacy values during migration.
+        const previous = JSON.parse(configFileView.text());
+        for (const mode of ["classic", "scrolling"]) {
+            const profile = layoutFor(mode);
+            copyKnown(profile.bar, previous.bar);
+            copyKnown(profile.overview, previous.overview);
+            copyKnown(profile, previous.desktopLayouts?.[mode]);
+        }
+        options.desktopLayouts.version = 1;
+    }
+
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
@@ -16,6 +48,9 @@ Singleton {
     signal loaded()
 
     function setNestedValue(nestedKey, value) {
+        // Existing IPC callers addressing bar/overview edit only this mode.
+        if (/^(bar|overview)\./.test(nestedKey))
+            nestedKey = "desktopLayouts." + (options.desktopLayout === "classic" ? "classic" : "scrolling") + "." + nestedKey;
         let keys = nestedKey.split(".");
         let obj = root.options;
         let parents = [obj];
@@ -71,7 +106,11 @@ Singleton {
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
         onSaved: root.saved()
-        onLoaded: { root.ready = true; root.loaded(); }
+        onLoaded: {
+            root.migrateLayouts();
+            root.ready = true;
+            root.loaded();
+        }
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
                 writeAdapter();
@@ -83,6 +122,11 @@ Singleton {
 
             property string panelFamily: "ii" // "ii", "waffle"
             property string desktopLayout: "scrolling" // "scrolling", "classic"
+            property JsonObject desktopLayouts: JsonObject {
+                property int version: 0
+                property JsonObject classic: DesktopLayoutProfile {}
+                property JsonObject scrolling: DesktopLayoutProfile {}
+            }
 
             property JsonObject policies: JsonObject {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local
@@ -227,67 +271,6 @@ Singleton {
                 }
             }
 
-            property JsonObject bar: JsonObject {
-                property JsonObject autoHide: JsonObject {
-                    property bool enable: false
-                    property int hoverRegionWidth: 2
-                    property bool pushWindows: false
-                    property JsonObject showWhenPressingSuper: JsonObject {
-                        property bool enable: true
-                        property int delay: 140
-                    }
-                }
-                property bool bottom: false // Instead of top
-                property int cornerStyle: 0 // 0: Hug | 1: Float | 2: Plain rectangle
-                property bool floatStyleShadow: true // Show shadow behind bar when cornerStyle == 1 (Float)
-                property bool borderless: false // true for no grouping of items
-                property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
-                property bool showBackground: true
-                property bool verbose: true
-                property bool vertical: false
-                property JsonObject resources: JsonObject {
-                    property bool alwaysShowSwap: true
-                    property bool alwaysShowCpu: true
-                    property int memoryWarningThreshold: 95
-                    property int swapWarningThreshold: 85
-                    property int cpuWarningThreshold: 90
-                }
-                property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
-                property JsonObject utilButtons: JsonObject {
-                    property bool showScreenSnip: true
-                    property bool showColorPicker: false
-                    property bool showMicToggle: false
-                    property bool showKeyboardToggle: true
-                    property bool showDarkModeToggle: true
-                    property bool showPerformanceProfileToggle: false
-                    property bool showScreenRecord: false
-                }
-                property JsonObject workspaces: JsonObject {
-                    property bool monochromeIcons: true
-                    property int shown: 10
-                    property bool showAppIcons: true
-                    property bool alwaysShowNumbers: false
-                    property int showNumberDelay: 300 // milliseconds
-                    property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
-                    property bool useNerdFont: false
-                }
-                property JsonObject weather: JsonObject {
-                    property bool enable: false
-                    property bool enableGPS: true // gps based location
-                    property string city: "" // When 'enableGPS' is false
-                    property bool useUSCS: false // Instead of metric (SI) units
-                    property int fetchInterval: 10 // minutes
-                }
-                property JsonObject indicators: JsonObject {
-                    property JsonObject notifications: JsonObject {
-                        property bool showUnreadCount: false
-                    }
-                }
-                property JsonObject tooltips: JsonObject {
-                    property bool clickToShow: false
-                }
-            }
-
             property JsonObject battery: JsonObject {
                 property int low: 20
                 property int critical: 5
@@ -426,16 +409,6 @@ Singleton {
                     property string imageSource: "https://media.tenor.com/H5U5bJzj3oAAAAAi/kukuru.gif"
                     property real scale: 0.5
                 }
-            }
-
-            property JsonObject overview: JsonObject {
-                property bool enable: true
-                property real scale: 0.18 // Relative to screen size
-                property real rows: 2
-                property real columns: 5
-                property bool orderRightLeft: false
-                property bool orderBottomUp: false
-                property bool centerIcons: true
             }
 
             property JsonObject regionSelector: JsonObject {

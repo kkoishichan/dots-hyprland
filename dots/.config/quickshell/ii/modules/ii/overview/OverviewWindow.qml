@@ -40,7 +40,7 @@ Item {
         }
     }
     property real cornerRadius: Appearance.rounding.small
-    readonly property bool centerIcons: Config.options.overview.centerIcons
+    readonly property bool centerIcons: Config.layoutFor("scrolling").overview.centerIcons
     readonly property real iconBaseSize: Math.min(width, height)
     readonly property bool compactMode: Appearance.font.pixelSize.smaller * 4 > iconBaseSize
 

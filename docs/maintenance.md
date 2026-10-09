@@ -56,7 +56,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 git diff --check
 ```
 
-有冲突时，保留滚动布局、动态工作区和简洁概览的行为，并结合上游的新接口修正代码。需要同步上游基础文件时，使用本仓库的安装器：
+有冲突时，保留平铺／滚动两种模式的设置隔离，以及滚动模式的动态工作区和简洁概览，并结合上游的新接口修正代码。需要同步上游基础文件时，使用本仓库的安装器：
 
 ```sh
 ./setup install --skip-alldeps --skip-allsetups --core

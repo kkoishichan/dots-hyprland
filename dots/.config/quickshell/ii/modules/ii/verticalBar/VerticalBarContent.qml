@@ -26,7 +26,7 @@ Item { // Bar content region
 
     // Background shadow
     Loader {
-        active: Config.options.bar.showBackground && Config.options.bar.cornerStyle === 1
+        active: Config.layout.bar.showBackground && Config.layout.bar.cornerStyle === 1
         anchors.fill: barBackground
         sourceComponent: StyledRectangularShadow {
             anchors.fill: undefined // The loader's anchors act on this, and this should not have any anchor
@@ -38,11 +38,11 @@ Item { // Bar content region
         id: barBackground
         anchors {
             fill: parent
-            margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
+            margins: Config.layout.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
         }
-        color: Config.options.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
-        radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
-        border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
+        color: Config.layout.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
+        radius: Config.layout.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
+        border.width: Config.layout.bar.cornerStyle === 1 ? 1 : 0
         border.color: Appearance.colors.colLayer0Border
     }
 
@@ -102,7 +102,7 @@ Item { // Bar content region
         }
 
         HorizontalBarSeparator {
-            visible: Config.options?.bar.borderless
+            visible: Config.layout.bar.borderless
         }
 
         Bar.BarGroup {
@@ -128,7 +128,7 @@ Item { // Bar content region
         }
 
         HorizontalBarSeparator {
-            visible: Config.options?.bar.borderless
+            visible: Config.layout.bar.borderless
         }
 
         Bar.BarGroup {
@@ -187,7 +187,7 @@ Item { // Bar content region
                 vertical: true
                 Layout.fillWidth: true
                 Layout.fillHeight: false
-                invertSide: Config?.options.bar.bottom
+                invertSide: Config.layout.bar.bottom
             }
 
             RippleButton { // Right sidebar button

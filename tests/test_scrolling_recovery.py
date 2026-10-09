@@ -154,6 +154,35 @@ class ScrollingRecoveryTests(unittest.TestCase):
                 connection.close()
         self.exercise(probe)
 
+    def test_return_to_scrolling_adopts_workspace_moves_made_in_tiling(self):
+        def probe(base, rpc, status, events):
+            rpc("setScrolling", "false")
+            self.wait_for(lambda: not status()["enabled"])
+            native_file = base / "native.json"
+            native = json.loads(native_file.read_text())
+            native["monitors"].append({"id": 1, "name": "other", "focused": False,
+                "width": 2560, "height": 1440, "scale": 1, "x": 1920, "y": 0,
+                "activeWorkspace": {"id": 2}})
+            for ws in native["workspaces"]:
+                if ws["id"] == 2: ws["monitor"] = "other"
+            for window in native["clients"]:
+                if window["workspace"]["id"] == 2: window["monitor"] = 1
+            temporary = native_file.with_suffix(".test-next")
+            temporary.write_text(json.dumps(native)); temporary.replace(native_file)
+            revision = status()["monitorRevision"]
+            rpc("refresh")
+            self.wait_for(lambda: status()["monitorRevision"] > revision)
+            time.sleep(0.45)  # All three fixture snapshots must have settled.
+            previous = status()["dispatches"]
+            rpc("setScrolling", "true")
+            self.wait_for(lambda: status()["workspaceState"]["homes"].get("2") == "other")
+            state = status()
+            self.assertIn(2, state["workspaceState"]["orders"]["other"])
+            self.assertNotIn(2, state["workspaceState"]["orders"]["mock"])
+            self.assertEqual(state["dispatches"], previous,
+                "Saved scrolling homes moved a workspace changed in tiling mode")
+        self.exercise(probe)
+
 
 if __name__ == "__main__":
     unittest.main()

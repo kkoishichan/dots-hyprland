@@ -53,12 +53,12 @@ MouseArea {
             anchor {
                 window: root.QsWindow.window
                 item: root
-                gravity: Config.options.bar.vertical
-                    ? (Config.options.bar.bottom ? Edges.Left : Edges.Right)
-                    : (Config.options.bar.bottom ? Edges.Top : Edges.Bottom)
-                edges: Config.options.bar.vertical
-                    ? (Config.options.bar.bottom ? Edges.Left : Edges.Right)
-                    : (Config.options.bar.bottom ? Edges.Top : Edges.Bottom)
+                gravity: Config.layout.bar.vertical
+                    ? (Config.layout.bar.bottom ? Edges.Left : Edges.Right)
+                    : (Config.layout.bar.bottom ? Edges.Top : Edges.Bottom)
+                edges: Config.layout.bar.vertical
+                    ? (Config.layout.bar.bottom ? Edges.Left : Edges.Right)
+                    : (Config.layout.bar.bottom ? Edges.Top : Edges.Bottom)
             }
             onMenuOpened: (window) => root.menuOpened(window);
             onMenuClosed: {
@@ -100,7 +100,7 @@ MouseArea {
         id: tooltip
         extraVisibleCondition: root.containsMouse
         alternativeVisibleCondition: extraVisibleCondition
-        anchorEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
+        anchorEdges: (!Config.layout.bar.bottom && !Config.layout.bar.vertical) ? Edges.Bottom : Edges.Top
     }
 
 }

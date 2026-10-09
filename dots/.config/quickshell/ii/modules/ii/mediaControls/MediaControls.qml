@@ -92,15 +92,15 @@ Scope {
             WlrLayershell.namespace: "quickshell:mediaControls"
 
             anchors {
-                top: !Config.options.bar.bottom || Config.options.bar.vertical
-                bottom: Config.options.bar.bottom && !Config.options.bar.vertical
-                left: !(Config.options.bar.vertical && Config.options.bar.bottom)
-                right: Config.options.bar.vertical && Config.options.bar.bottom
+                top: !Config.layout.bar.bottom || Config.layout.bar.vertical
+                bottom: Config.layout.bar.bottom && !Config.layout.bar.vertical
+                left: !(Config.layout.bar.vertical && Config.layout.bar.bottom)
+                right: Config.layout.bar.vertical && Config.layout.bar.bottom
             }
             margins {
-                top: Config.options.bar.vertical ? ((panelWindow.screen.height / 2) - widgetHeight * 1.5) : Appearance.sizes.barHeight
+                top: Config.layout.bar.vertical ? ((panelWindow.screen.height / 2) - widgetHeight * 1.5) : Appearance.sizes.barHeight
                 bottom: Appearance.sizes.barHeight
-                left: Config.options.bar.vertical ? Appearance.sizes.barHeight : ((panelWindow.screen.width / 2) - (osdWidth / 2) - widgetWidth)
+                left: Config.layout.bar.vertical ? Appearance.sizes.barHeight : ((panelWindow.screen.width / 2) - (osdWidth / 2) - widgetWidth)
                 right: Appearance.sizes.barHeight
             }
 
