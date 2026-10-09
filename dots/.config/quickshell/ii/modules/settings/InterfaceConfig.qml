@@ -14,8 +14,8 @@ ContentPage {
             currentValue: Config.options.desktopLayout
             onSelected: value => { Config.options.desktopLayout = value; }
             options: [
-                { displayName: Translation.tr("Scrolling"), icon: "view_column", value: "scrolling" },
-                { displayName: Translation.tr("Tiled layout"), icon: "view_quilt", value: "classic" }
+                { displayName: Translation.tr("Tiled layout"), icon: "view_quilt", value: "classic" },
+                { displayName: Translation.tr("Scrolling"), icon: "view_column", value: "scrolling" }
             ]
         }
     }
