@@ -24,7 +24,8 @@ Singleton {
     property var windowInsertions: []
     property var currentInsertion: null
     property var awaitingInsertionSnapshots: []
-    signal windowInsertionFinished(string address, bool success)
+    property int nextInsertionId: 0
+    signal windowInsertionFinished(int requestId, string address, bool success)
     readonly property string statePath: FileUtils.trimFileProtocol(Directories.state + "/user/scrolling-workspaces.json")
     // Native JSON snapshots stay authoritative even if the module's event
     // connection has dropped and its monitor objects are frozen.
@@ -159,14 +160,56 @@ Singleton {
     }
 
     function insertWindow(name, id, address, anchor, before) {
-        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id) || !address) return;
+        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id) || !address) return 0;
         protect(id);
         const command = `require("custom.overview_drop").insert({ monitor = ${luaString(name)}, workspace = ${id}, address = ${luaString(address)}, anchor = ${luaString(anchor || "")}, before = ${before ? "true" : "false"} })`;
-        windowInsertions = windowInsertions.concat([{ command, address, monitor: name, workspace: id }]);
-        if (!placingWindow) {
-            placingWindow = true;
-            insertionDelay.restart();
+        const requestId = ++nextInsertionId;
+        windowInsertions = windowInsertions.concat([{
+            requestId, command, address, monitor: name, workspace: id, deadline: Date.now() + 5000
+        }]);
+        startNextInsertion();
+        return requestId;
+    }
+
+    function startNextInsertion() {
+        placingWindow = !!currentInsertion || insertionProcess.running || windowInsertions.length > 0;
+        if (!currentInsertion && !insertionProcess.running && windowInsertions.length && !insertionDelay.running)
+            insertionDelay.start();
+    }
+
+    function cancelInsertion(requestId, notify = false) {
+        if (!requestId) return;
+        const item = windowInsertions.find(item => item.requestId === requestId)
+            ?? awaitingInsertionSnapshots.find(item => item.requestId === requestId)
+            ?? (currentInsertion?.requestId === requestId ? currentInsertion : null);
+        windowInsertions = windowInsertions.filter(item => item.requestId !== requestId);
+        awaitingInsertionSnapshots = awaitingInsertionSnapshots.filter(item => item.requestId !== requestId);
+        if (currentInsertion?.requestId === requestId) {
+            currentInsertion = null;
+            // Stop this IPC client; a compositor operation already applied cannot be undone.
+            if (insertionProcess.running) insertionProcess.signal(9);
+            HyprlandData.updateLayoutSnapshot();
         }
+        startNextInsertion();
+        if (item && notify) Qt.callLater(() => windowInsertionFinished(item.requestId, item.address, false));
+    }
+
+    function finishInsertionProcess(success) {
+        const item = currentInsertion;
+        currentInsertion = null;
+        if (item) {
+            if (success) {
+                // Ignore pre-dispatch queries until all three fresh snapshots arrive.
+                awaitingInsertionSnapshots = awaitingInsertionSnapshots.concat([
+                    Object.assign({}, item, { revisions: HyprlandData.updateLayoutSnapshot() })
+                ]);
+            } else {
+                HyprlandData.updateLayoutSnapshot();
+                Qt.callLater(() => windowInsertionFinished(item.requestId, item.address, false));
+            }
+        }
+        schedule();
+        startNextInsertion();
     }
 
     function previewInsertion(name, id, address, targetName) {
@@ -181,8 +224,8 @@ Singleton {
         interval: 50
         onTriggered: {
             if (GlobalStates.screenLocked || !root.windowInsertions.length) {
-                root.windowInsertions = [];
-                root.placingWindow = false;
+                for (const item of root.windowInsertions.slice()) root.cancelInsertion(item.requestId, true);
+                root.startNextInsertion();
                 return;
             }
             root.currentInsertion = root.windowInsertions[0];
@@ -197,21 +240,29 @@ Singleton {
             if (text.trim() !== "ok") console.warn("[Scrolling] Window insertion:", text.trim());
         } }
         onExited: (exitCode, exitStatus) => {
-            // An earlier event query may still contain the old column order.
-            // Only hand the dragged card back after a fresh post-dispatch query.
-            if (root.currentInsertion) {
-                root.awaitingInsertionSnapshots = root.awaitingInsertionSnapshots.concat([{
-                    address: root.currentInsertion.address,
-                    monitor: root.currentInsertion.monitor,
-                    workspace: root.currentInsertion.workspace,
-                    success: exitCode === 0 && insertionOutput.text.trim() === "ok",
-                    revisions: HyprlandData.updateLayoutSnapshot()
-                }]);
+            root.finishInsertionProcess(exitCode === 0 && insertionOutput.text.trim() === "ok");
+        }
+        onRunningChanged: {
+            // FailedToStart emits runningChanged, but never exited. Defer so a
+            // normal exit can finish its collector and clear the current request.
+            if (!running && root.currentInsertion) {
+                const requestId = root.currentInsertion.requestId;
+                Qt.callLater(() => {
+                    if (!insertionProcess.running && root.currentInsertion?.requestId === requestId)
+                        root.finishInsertionProcess(false);
+                });
             }
-            root.currentInsertion = null;
-            root.schedule();
-            if (root.windowInsertions.length) insertionDelay.restart();
-            else root.placingWindow = false;
+        }
+    }
+    Timer {
+        interval: 100
+        running: root.placingWindow || root.awaitingInsertionSnapshots.length > 0
+        repeat: true
+        onTriggered: {
+            const now = Date.now();
+            const requests = root.windowInsertions.concat(root.awaitingInsertionSnapshots,
+                root.currentInsertion ? [root.currentInsertion] : []);
+            for (const item of requests) if (item.deadline <= now) root.cancelInsertion(item.requestId, true);
         }
     }
 
@@ -301,8 +352,8 @@ Singleton {
         for (const item of completed) {
             const window = HyprlandData.windowByAddress[item.address];
             const monitor = root.monitorForName(item.monitor);
-            const success = item.success && window?.workspace?.id === item.workspace && window?.monitor === monitor?.id;
-            Qt.callLater(() => root.windowInsertionFinished(item.address, success));
+            const success = item.deadline > Date.now() && window?.workspace?.id === item.workspace && window?.monitor === monitor?.id;
+            Qt.callLater(() => root.windowInsertionFinished(item.requestId, item.address, success));
         }
     }
     Connections {

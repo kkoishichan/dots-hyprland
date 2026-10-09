@@ -493,6 +493,7 @@ FocusScope {
             property bool relocating: false
             property bool placementConfirmed: false
             property bool snapFinished: false
+            property int insertionRequestId: 0
             property bool positioned: false
             property bool atHome: true
             property real dragX: 0
@@ -576,6 +577,9 @@ FocusScope {
                 const point = window.mapToItem(dragLayer, 0, 0);
                 lastWindowData = windowData;
                 dragging = true;
+                cancelPlacement();
+                dropping = false;
+                snapping = false;
                 atHome = false;
                 dragX = point.x;
                 dragY = point.y;
@@ -587,9 +591,15 @@ FocusScope {
                 }
             }
             // Leave the drag layer at the current spot, then glide back into the lane.
-            function returnHome() {
+            function cancelPlacement() {
                 placementTimeout.stop();
                 snapCompletion.stop();
+                const requestId = insertionRequestId;
+                insertionRequestId = 0;
+                if (requestId) ScrollingLayout.cancelInsertion(requestId);
+            }
+            function returnHome() {
+                cancelPlacement();
                 const controller = root.dragController;
                 const crossScreen = controller?.sourceView === root && controller.targetView !== root;
                 if (crossScreen && placementConfirmed) { controller.finish(); return; }
@@ -615,8 +625,8 @@ FocusScope {
             }
             Connections {
                 target: ScrollingLayout
-                function onWindowInsertionFinished(address, success) {
-                    if (!window.dropping || address !== window.modelData) return;
+                function onWindowInsertionFinished(requestId, address, success) {
+                    if (!window.dropping || requestId !== window.insertionRequestId || address !== window.modelData) return;
                     if (!success) { window.returnHome(); return; }
                     window.placementConfirmed = true;
                     if (window.snapFinished) window.returnHome();
@@ -631,7 +641,7 @@ FocusScope {
                 }
             }
             // Recover the card if a placement never completes.
-            Timer { id: placementTimeout; interval: 5000; onTriggered: window.returnHome() }
+            Timer { id: placementTimeout; interval: 6000; onTriggered: window.returnHome() }
             MouseArea {
                 id: windowArea
                 anchors.fill: parent
@@ -684,7 +694,8 @@ FocusScope {
                         window.snapping = true;
                         snapCompletion.restart();
                         placementTimeout.restart();
-                        ScrollingLayout.insertWindow(destination.monitorName, target.workspace, address, target.anchor, target.before);
+                        window.insertionRequestId = ScrollingLayout.insertWindow(destination.monitorName, target.workspace, address, target.anchor, target.before);
+                        if (!window.insertionRequestId) window.returnHome();
                     } else window.returnHome();
                 }
                 onCanceled: {

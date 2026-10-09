@@ -26,6 +26,7 @@ Singleton {
     property var activeWorkspace: null
     property var monitors: []
     property string focusedMonitorName: ""
+    property int focusEventRevision: 0
     property var layers: ({})
     property var closedWindowAddresses: ({})
     readonly property bool eventsConnected: eventConnection.item?.connected ?? false
@@ -107,6 +108,7 @@ Singleton {
     function handleEvent(event) {
         if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
         if (event.name === "focusedmon") {
+            root.focusEventRevision++;
             root.focusedMonitorName = event.data.split(",")[0];
         }
         // Layout changes need a notification, without shortcut press/release semantics.
@@ -183,25 +185,53 @@ Singleton {
     }
 
     component HyprctlQuery: Process {
+        id: query
         property bool refreshPending: false
         property int requestedRevision: 0
         property int runningRevision: 0
+        property int runningFocusRevision: 0
+        property bool waitingForExit: false
+        property Timer retryTimer: Timer { interval: 1000; onTriggered: query.refresh() }
+
+        function startQuery() {
+            retryTimer.stop();
+            runningRevision = requestedRevision;
+            runningFocusRevision = root.focusEventRevision;
+            waitingForExit = true;
+            running = true;
+        }
+
+        function readArray(text) {
+            try {
+                const result = JSON.parse(text);
+                if (!Array.isArray(result)) throw new Error("Expected an array");
+                return result;
+            } catch (error) {
+                console.warn("[HyprlandData] Invalid snapshot:", command[1], error);
+                retryTimer.restart();
+                return null;
+            }
+        }
 
         function refresh() {
+            retryTimer.stop();
             requestedRevision++;
             if (running) refreshPending = true;
-            else {
-                runningRevision = requestedRevision;
-                running = true;
-            }
+            else startQuery();
             return requestedRevision;
         }
 
         onExited: {
+            waitingForExit = false;
             if (refreshPending) {
                 refreshPending = false;
-                runningRevision = requestedRevision;
-                running = true;
+                startQuery();
+            }
+        }
+        onRunningChanged: {
+            if (!running && waitingForExit) {
+                waitingForExit = false;
+                retryTimer.restart();
             }
         }
     }
@@ -212,7 +242,8 @@ Singleton {
         stdout: StdioCollector {
             id: clientsCollector
             onStreamFinished: {
-                const windows = JSON.parse(clientsCollector.text);
+                const windows = getClients.readArray(clientsCollector.text);
+                if (!windows) return;
                 const closed = {};
                 for (const win of windows) {
                     if (root.closedWindowAddresses[win.address]) closed[win.address] = true;
@@ -232,8 +263,12 @@ Singleton {
         stdout: StdioCollector {
             id: monitorsCollector
             onStreamFinished: {
-                root.monitors = JSON.parse(monitorsCollector.text);
-                root.focusedMonitorName = root.monitors.find(m => m.focused)?.name ?? "";
+                const monitors = getMonitors.readArray(monitorsCollector.text);
+                if (!monitors) return;
+                root.monitors = monitors;
+                // An event received after this query began has newer focus information.
+                if (getMonitors.runningFocusRevision === root.focusEventRevision)
+                    root.focusedMonitorName = monitors.find(m => m.focused)?.name ?? "";
                 root.monitorSnapshotRevision = getMonitors.runningRevision;
             }
         }
@@ -256,7 +291,8 @@ Singleton {
         stdout: StdioCollector {
             id: workspacesCollector
             onStreamFinished: {
-                var rawWorkspaces = JSON.parse(workspacesCollector.text);
+                const rawWorkspaces = getWorkspaces.readArray(workspacesCollector.text);
+                if (!rawWorkspaces) return;
                 // Filter out invalid workspace ids (e.g. lock-screen temp workspace 2147483647 - N)
                 root.workspaces = rawWorkspaces.filter(ws => ws.id >= 1 && ws.id < 1000000);
                 let tempWorkspaceById = {};

@@ -18,7 +18,7 @@ QS = shutil.which("qs")
 
 @unittest.skipUnless(QS, "Quickshell is needed for the offscreen overview test")
 class OverviewHandoffTests(unittest.TestCase):
-    def exercise_drop(self, scenario):
+    def exercise_drop(self, scenario, probe=None):
         cross = scenario.startswith("cross-")
         backend = scenario == "pruned-backend" or scenario.startswith("backend-")
         with tempfile.TemporaryDirectory(prefix="overview-handoff-") as directory:
@@ -136,7 +136,8 @@ Singleton {
     property var ids: %s
     property var monitor: ({width: 1920, height: 1080, scale: 1})
     property var pending: null
-    signal windowInsertionFinished(string address, bool success)
+    property int nextInsertionId: 0
+    signal windowInsertionFinished(int requestId, string address, bool success)
     function workspaceIds(name) { return ids; }
     function activeId(name) { return 1; }
     function viewport(name) { return Geometry.viewport(monitor); }
@@ -153,7 +154,13 @@ Singleton {
             {}, Date.now(), address, id).orders[name];
     }
     function insertWindow(name, id, address, anchor, before) {
-        pending = {workspace: id, address, anchor, before}; dispatchDelay.start();
+        const requestId = ++nextInsertionId;
+        pending = {requestId, workspace: id, address, anchor, before}; dispatchDelay.start();
+        return requestId;
+    }
+    function cancelInsertion(requestId) {
+        if (pending?.requestId !== requestId) return;
+        dispatchDelay.stop(); snapshotDelay.stop(); pending = null;
     }
     Timer {
         id: dispatchDelay; interval: 240
@@ -178,7 +185,7 @@ Singleton {
             snapshotDelay.start();
         }
     }
-    Timer { id: snapshotDelay; interval: 120; onTriggered: root.windowInsertionFinished(root.pending.address, true) }
+    Timer { id: snapshotDelay; interval: 120; onTriggered: root.windowInsertionFinished(root.pending.requestId, root.pending.address, true) }
 }
 """ % json.dumps([1, 2, 11] if scenario in ("occupied", "wide-occupied", "wide-motion", "overflow-motion", "cancel") or scenario.startswith("pruned-") else [1, 11]))
             if cross:
@@ -198,7 +205,8 @@ Singleton {
     property var monitors: %s
     property var pending: null
     property var predicted: null
-    signal windowInsertionFinished(string address, bool success)
+    property int nextInsertionId: 0
+    signal windowInsertionFinished(int requestId, string address, bool success)
     function workspaceIds(name) { return orders[name] ?? []; }
     function monitor(name) { return monitors.find(m => m.name === name); }
     function activeId(name) { return monitor(name).activeWorkspace.id; }
@@ -221,8 +229,14 @@ Singleton {
     }
     function previewInsertion(name, id, address, targetName) { return forecast(id, address, targetName)[name]; }
     function insertWindow(name, id, address, anchor, before) {
+        const requestId = ++nextInsertionId;
         predicted = forecast(id, address, name);
-        pending = {name, workspace: id, address, anchor, before}; dispatchDelay.start();
+        pending = {requestId, name, workspace: id, address, anchor, before}; dispatchDelay.start();
+        return requestId;
+    }
+    function cancelInsertion(requestId) {
+        if (pending?.requestId !== requestId) return;
+        dispatchDelay.stop(); snapshotDelay.stop(); pending = null;
     }
     Timer {
         id: dispatchDelay; interval: 240
@@ -246,7 +260,7 @@ Singleton {
             snapshotDelay.start();
         }
     }
-    Timer { id: snapshotDelay; interval: 120; onTriggered: root.windowInsertionFinished(root.pending.address, true) }
+    Timer { id: snapshotDelay; interval: 120; onTriggered: root.windowInsertionFinished(root.pending.requestId, root.pending.address, true) }
 }
 """ % (json.dumps(orders), json.dumps(monitors)))
             event_socket = None
@@ -274,7 +288,7 @@ if command == "dispatch":
     mode_file = state_file.with_name("insertion-mode")
     mode = mode_file.read_text() if mode_file.exists() else "normal"
     mode_file.unlink(missing_ok=True)
-    time.sleep(1.65 if mode == "slow" else 0.10)
+    time.sleep(20 if mode == "hang" else 1.65 if mode == "slow" else 0.10)
     if mode == "failure":
         print("error: no window")
         sys.exit(1)
@@ -309,7 +323,12 @@ if command == "dispatch":
 else:
     # Snapshot first, then delay delivery: a pre-dispatch query must remain stale.
     delays = {"clients": 0.08, "monitors": 0.28, "workspaces": 0.36}
+    control_file = state_file.with_name("query-control.json")
+    control = json.loads(control_file.read_text()) if control_file.exists() else {}
+    delays.update(control.get("delays", {}))
     time.sleep(delays.get(command, 0))
+    if command in control.get("invalid", []):
+        print("invalid snapshot"); sys.exit(1)
     print(json.dumps(state.get(command, {"id": 1} if command == "activeworkspace" else {})))
 """)
                 (base / "hyprctl").chmod(0o700)
@@ -392,6 +411,10 @@ Scope {
     }
     IpcHandler {
         target: "test"
+        function focused(): string { return HyprlandData.focusedMonitorName; }
+        function complete(requestId: int, address: string, success: bool): void {
+            ScrollingLayout.windowInsertionFinished(requestId, address, success);
+        }
         function settle(): void { overview.settled = true; other.settled = true; }
         function watchHover(address: string): void { watchAddress = address; hoverFrames = [hoverSample()]; watchingHover = true; }
         function hovered(): string { watchingHover = false; return JSON.stringify(hoverFrames); }
@@ -406,7 +429,12 @@ Scope {
             const point = card?.mapToItem(overview, 0, 0);
             return JSON.stringify({x: point?.x, y: point?.y, width: card?.width, height: card?.height,
                 token: card?.token, shown: card?.shown, visible: card?.visible, dragging: card?.dragging,
-                dropping: card?.dropping, workspace: card?.windowData?.workspace?.id, overviewHeight: overview.height,
+                dropping: card?.dropping, requestId: card?.insertionRequestId,
+                placing: ScrollingLayout.placingWindow ?? false, current: ScrollingLayout.currentInsertion ?? null,
+                awaiting: ScrollingLayout.awaitingInsertionSnapshots ?? [], queue: ScrollingLayout.windowInsertions ?? [],
+                focused: HyprlandData.focusedMonitorName ?? "", monitorRevision: HyprlandData.monitorSnapshotRevision ?? 0,
+                snapshotFocus: HyprlandData.monitors?.find(m => m.focused)?.name ?? "",
+                workspace: card?.windowData?.workspace?.id, overviewHeight: overview.height,
                 nativeWorkspace: HyprlandData.windowByAddress["0xa"]?.workspace?.id,
                 nativeX: HyprlandData.windowByAddress["0xa"]?.at?.[0], nativeMonitor: HyprlandData.windowByAddress["0xa"]?.monitor,
                 target: cross ? sharedDrag.targetView?.dropTarget ?? null : overview.dropTarget,
@@ -498,6 +526,9 @@ Scope {
                 if scenario == "overflow-motion":
                     rpc("scrollEnd")
                 initial = status()
+                if probe:
+                    probe(base, rpc, status, event_socket)
+                    return
                 self.assertTrue(initial["visible"])
                 target_id = (12 if scenario == "cross-bottom" else remote_id) if cross else 1 if scenario in ("same-workspace", "pruned-occupied", "repeat") else 2 if scenario in ("occupied", "wide-occupied", "wide-motion", "overflow-motion", "cancel") else 11
                 row = next(row for row in initial["remoteRows" if cross else "rows"] if row["id"] == target_id)
