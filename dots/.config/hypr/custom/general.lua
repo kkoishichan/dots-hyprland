@@ -49,7 +49,11 @@ hl.config({
     }
 })
 
-hl.animation({ leaf = "workspaces", enabled = true, speed = 7, bezier = "menu_decel", style = "slidevert" })
+local overview_drop = require("custom.overview_drop")
+overview_drop.configure_workspace_animation({ leaf = "workspaces", enabled = true, speed = 7, bezier = "menu_decel", style = "slidevert" })
+overview_drop.configure_workspace_animation({ leaf = "specialWorkspaceIn", enabled = true, speed = 2.8, bezier = "emphasizedDecel", style = "slidevert" })
+overview_drop.configure_workspace_animation({ leaf = "specialWorkspaceOut", enabled = true, speed = 1.2, bezier = "emphasizedAccel", style = "slidevert" })
+overview_drop.watch_overview()
 
 -- Remove the old drag and numbered-workspace gestures before adding scrolling gestures.
 hl.gesture({ fingers = 3, direction = "swipe", action = "unset" })

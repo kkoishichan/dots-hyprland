@@ -6,6 +6,22 @@ function validId(id) {
     return Number.isInteger(id) && id > 0 && id < MAX_ID;
 }
 
+// Forecast the same dynamic lifecycle used after a drop. This lets the overview
+// snap to the final row instead of snapping down and then folding back upward.
+function previewMove(state, monitors, workspaces, clients, pending, now, address, targetId, targetName) {
+    const moving = clients.find(w => w.address === address);
+    if (!moving) return state;
+    const addresses = new Set([address, ...(moving.grouped || [])]);
+    const home = targetName || workspaces.find(ws => ws.id === targetId)?.monitor || state.homes?.[targetId];
+    const monitor = monitors.find(m => m.name === home)?.id ?? moving.monitor;
+    const windows = clients.map(w => addresses.has(w.address)
+        ? Object.assign({}, w, { workspace: { id: targetId }, monitor }) : w);
+    const counts = {};
+    for (const w of windows) if (w.mapped !== false) counts[w.workspace.id] = (counts[w.workspace.id] || 0) + 1;
+    const updated = workspaces.map(ws => Object.assign({}, ws, { windows: counts[ws.id] || 0 }));
+    return reconcile(state, monitors, updated, windows, pending, now);
+}
+
 function reconcile(state, monitors, workspaces, clients, pending, now) {
     const orders = {};
     const homes = Object.assign({}, state.homes || {});

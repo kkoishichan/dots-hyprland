@@ -10,8 +10,69 @@ function load(name) {
 const model = load('ScrollingWorkspaceModel.js');
 const geometry = load('ScrollingGeometry.js');
 const plain = x => JSON.parse(JSON.stringify(x));
+const tile = (address, x, width = 100, extra = {}) => ({ address, localX: x, layoutWidth: width, ...extra });
+const strip = [tile('a', 0), tile('b', 104, 200), tile('c', 308)];
+assert.deepEqual(plain(geometry.insertion(strip, 'b', -10)), { anchor: 'a', before: true, x: -2 });
+assert.deepEqual(plain(geometry.insertion(strip, 'b', 210)), { anchor: 'c', before: true, x: 204 });
+assert.deepEqual(plain(geometry.insertion(strip, 'b', 500)), { anchor: 'c', before: false, x: 410 });
+assert.deepEqual(plain(geometry.insertion([], 'moving', 90)), { anchor: '', before: false, x: 0 });
+assert.equal(geometry.insertion([tile('a', 0)], 'a', 20).anchor, '', 'Do not anchor a drop to itself');
+assert.equal(geometry.insertion([tile('floating', 0, 100, { floating: true }), tile('a', 120)], 'moving', 10).anchor, 'a');
+assert.equal(geometry.insertion([tile('tab', 0, 100, { hidden: true }), tile('a', 0)], 'moving', 10).anchor, 'a');
+assert.equal(geometry.insertion([tile('a', 0), tile('b', 0), tile('c', 104)], 'moving', 90).anchor, 'c',
+    'Stacked windows form one insertion column');
+assert.equal(geometry.insertion([tile('a', 0, 100, { grouped: ['a', 'b'] }), tile('b', 0), tile('c', 104)], 'a', 20).anchor, 'c',
+    'A dragged tab group cannot anchor to its own hidden members');
+const dragging = tile('b', 104, 200, { localY: 0, workspace: { id: 1 } });
+const positions = preview => plain(preview.windows.map(w => [w.address, w.localX, w.layoutWidth]));
+assert.deepEqual(positions(geometry.dragPreview(strip, 1, dragging, { workspace: 2, anchor: 'e', before: true }, 1000)),
+    [['a', 0, 100], ['c', 104, 100]], 'The source closes only the width of the removed column');
+assert.deepEqual(positions(geometry.dragPreview(strip, 1, dragging, { workspace: 1, anchor: 'a', before: true }, 1000)),
+    [['a', 204, 100], ['c', 308, 100], ['b', 0, 200]], 'A same-workspace move does not reserve the width twice');
+assert.deepEqual(positions(geometry.dragPreview([tile('d', 0), tile('e', 104)], 2, dragging,
+    { workspace: 2, anchor: 'e', before: true }, 1000)),
+    [['d', 0, 100], ['e', 308, 100], ['b', 104, 200]], 'Neighbours yield the dragged width plus one native gap');
+assert.equal(geometry.dragPreview([], 2, dragging, { workspace: 2, anchor: '', before: false }, 1000).slot.localX, 400,
+    'A sole drop is centred in an empty destination');
+assert.deepEqual(positions(geometry.dragPreview([tile('a', 0), tile('b', 0), tile('c', 104)], 1,
+    tile('a', 0, 100), { workspace: 2, anchor: '', before: false }, 1000)), [['b', 0, 100], ['c', 104, 100]],
+    'Dragging one stacked window leaves its old column occupied');
+const remoteWindows = [tile('x', 0), tile('y', 150)];
+assert.deepEqual(positions(geometry.dragPreview(remoteWindows, 3, dragging, { workspace: 2 }, 1000)),
+    positions({windows: remoteWindows}), 'An unrelated workspace does not reflow');
 const output = (id, name, active) => ({ id, name, activeWorkspace: { id: active } });
 const workspace = (id, monitor, windows = 1, name = String(id)) => ({ id, monitor, windows, name });
+const beforeDrop = { version: 1, orders: { laptop: [1, 2, 11] }, homes: {}, nextId: 12 };
+const dropClients = [{ address: 'a', monitor: 0, workspace: { id: 2 } },
+    { address: 'b', monitor: 0, workspace: { id: 1 } }];
+const afterDrop = plain(model.previewMove(beforeDrop, [output(0, 'laptop', 1)],
+    [workspace(1, 'laptop'), workspace(2, 'laptop')], dropClients, {}, 100, 'a', 11));
+assert.deepEqual(afterDrop.orders.laptop, [1, 11, 12], 'A sole-window drop targets the final row after its source closes');
+assert.deepEqual(beforeDrop.orders.laptop, [1, 2, 11], 'Forecasting a drop does not change the real workspace sequence');
+assert.equal(dropClients[0].workspace.id, 2, 'Forecasting does not move the native window');
+const dualDropState = { version: 1, orders: { laptop: [1, 2, 11], external: [3, 12] },
+    homes: {1: 'laptop', 2: 'laptop', 11: 'laptop', 3: 'external', 12: 'external'}, nextId: 13 };
+const crossDrop = plain(model.previewMove(dualDropState, [output(0, 'laptop', 1), output(1, 'external', 3)],
+    [workspace(1, 'laptop'), workspace(2, 'laptop'), workspace(3, 'external')],
+    [...dropClients, {address: 'c', monitor: 1, workspace: {id: 3}}], {}, 100, 'a', 12, 'external'));
+assert.deepEqual(crossDrop.orders.laptop, [1, 11], 'A cross-output move prunes its inactive emptied source');
+assert.deepEqual(crossDrop.orders.external, [3, 12, 13], 'A new destination workspace belongs to the target output');
+assert.equal(crossDrop.homes[12], 'external', 'A reserved workspace must not inherit the moved window\'s old output');
+const crossTile = tile('moving', 4, 900, {localY: 4, layoutHeight: 1072});
+const projected = geometry.projectWindow(crossTile, {width: 1920, height: 1080}, {width: 2560, height: 1440});
+assert.equal(projected.layoutWidth, 1200, 'Cross-output previews preserve the column width fraction');
+assert.equal(projected.layoutHeight, 1072 * 1440 / 1080, 'Tiled height adapts to the destination');
+assert.equal(crossTile.layoutWidth, 900, 'Projecting a drag does not resize source metadata');
+const floatProjection = geometry.projectWindow({...crossTile, floating: true, localX: 1800, localY: 900},
+    {width: 1920, height: 1080}, {width: 1280, height: 720});
+assert.equal(floatProjection.layoutWidth, 900, 'Floating window size stays in logical pixels');
+assert.equal(floatProjection.localX, 380, 'A floating destination is clamped into its new viewport');
+assert.deepEqual(plain(model.previewMove(beforeDrop, [output(0, 'laptop', 2)],
+    [workspace(1, 'laptop'), workspace(2, 'laptop')], dropClients, {}, 100, 'a', 11)).orders.laptop,
+    [1, 2, 11, 12], 'The active empty source workspace is retained');
+assert.deepEqual(plain(model.previewMove(beforeDrop, [output(0, 'laptop', 1)],
+    [workspace(1, 'laptop'), workspace(2, 'laptop', 1, 'named')], dropClients, {}, 100, 'a', 11)).orders.laptop,
+    [1, 2, 11, 12], 'A named source workspace is retained');
 let state = { orders: {}, homes: {}, nextId: 11 };
 const initial = [workspace(1, 'laptop'), workspace(2, 'external'), workspace(3, 'external')];
 function update(monitors, workspaces, pending = {}) {

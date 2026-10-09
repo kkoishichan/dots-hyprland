@@ -13,6 +13,11 @@ import Quickshell.Hyprland
 Singleton {
     id: root
     property var windowList: []
+    // Identifies the query that produced this geometry, so a layout transaction
+    // can wait for a query started after the compositor finished changing it.
+    property int windowSnapshotRevision: 0
+    property int monitorSnapshotRevision: 0
+    property int workspaceSnapshotRevision: 0
     property var addresses: []
     property var windowByAddress: ({})
     property var workspaces: []
@@ -20,8 +25,10 @@ Singleton {
     property var workspaceById: ({})
     property var activeWorkspace: null
     property var monitors: []
+    property string focusedMonitorName: ""
     property var layers: ({})
     property var closedWindowAddresses: ({})
+    readonly property bool eventsConnected: eventConnection.item?.connected ?? false
 
     // Convenient stuff
 
@@ -56,7 +63,7 @@ Singleton {
     }
 
     function updateWindowList() {
-        getClients.refresh();
+        return getClients.refresh();
     }
 
     function updateLayers() {
@@ -64,12 +71,17 @@ Singleton {
     }
 
     function updateMonitors() {
-        getMonitors.refresh();
+        return getMonitors.refresh();
     }
 
     function updateWorkspaces() {
-        getWorkspaces.refresh();
+        const revision = getWorkspaces.refresh();
         getActiveWorkspace.refresh();
+        return revision;
+    }
+
+    function updateLayoutSnapshot() {
+        return { windows: updateWindowList(), monitors: updateMonitors(), workspaces: updateWorkspaces() };
     }
 
     function updateAll() {
@@ -92,29 +104,61 @@ Singleton {
         updateAll();
     }
 
-    Connections {
-        target: Hyprland
-
-        function onRawEvent(event) {
-            if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
-            if (event.name === "closewindow" || event.name === "openwindow") {
-                const rawAddress = event.data.split(",")[0].trim();
-                const address = rawAddress.startsWith("0x") ? rawAddress : `0x${rawAddress}`;
-                const closed = Object.assign({}, root.closedWindowAddresses);
-                if (event.name === "closewindow") {
-                    // Do not wait for hyprctl to remove a window that is already gone.
-                    closed[address] = true;
-                    root.closedWindowAddresses = closed;
-                    root.setWindowList(root.windowList.filter(win => win.address !== address));
-                } else {
-                    // Hyprland may reuse an address for a newly opened window.
-                    delete closed[address];
-                    root.closedWindowAddresses = closed;
-                }
-                root.updateWindowList();
+    function handleEvent(event) {
+        if (["openlayer", "closelayer", "screencast"].includes(event.name)) return;
+        if (event.name === "focusedmon") {
+            root.focusedMonitorName = event.data.split(",")[0];
+        }
+        // Layout changes need a notification, without shortcut press/release semantics.
+        if (event.name === "custom" && event.data === "ii:layoutChanged") {
+            root.updateWindowList();
+            return;
+        }
+        if (event.name === "closewindow" || event.name === "openwindow") {
+            const rawAddress = event.data.split(",")[0].trim();
+            const address = rawAddress.startsWith("0x") ? rawAddress : `0x${rawAddress}`;
+            const closed = Object.assign({}, root.closedWindowAddresses);
+            if (event.name === "closewindow") {
+                // Do not wait for hyprctl to remove a window that is already gone.
+                closed[address] = true;
+                root.closedWindowAddresses = closed;
+                root.setWindowList(root.windowList.filter(win => win.address !== address));
+            } else {
+                // Hyprland may reuse an address for a newly opened window.
+                delete closed[address];
+                root.closedWindowAddresses = closed;
             }
-            // Bound the wait even when events keep arriving during an animation.
-            if (!eventRefresh.running) eventRefresh.start();
+            root.updateWindowList();
+        }
+        // Bound the wait even when events keep arriving during an animation.
+        if (!eventRefresh.running) eventRefresh.start();
+    }
+
+    // Quickshell's Hyprland event connection does not reconnect after EOF.
+    // Keep snapshot updates alive through a socket we can reconnect, without
+    // relying on the native module's cached monitor/workspace objects.
+    Loader {
+        id: eventConnection
+        sourceComponent: Socket {
+            path: Hyprland.eventSocketPath
+            connected: true
+            onConnectedChanged: { if (connected) root.updateAll(); }
+            parser: SplitParser {
+                onRead: line => {
+                    const separator = line.indexOf(">>");
+                    if (separator >= 0) root.handleEvent({ name: line.slice(0, separator), data: line.slice(separator + 2) });
+                }
+            }
+        }
+    }
+    Timer {
+        interval: 500
+        running: !root.eventsConnected
+        repeat: true
+        onTriggered: {
+            // A failed connection attempt also needs a fresh Socket object.
+            eventConnection.active = false;
+            eventConnection.active = true;
         }
     }
 
@@ -125,18 +169,10 @@ Singleton {
         onTriggered: root.updateAll()
     }
 
-    // Native layout operations (swapping, merging, resizing or centering columns) emit no
-    // IPC event. The Hyprland bindings report them so window order refreshes immediately.
-    GlobalShortcut {
-        name: "layoutChanged"
-        description: "Refreshes window positions after a scrolling layout change"
-        onPressed: root.updateWindowList()
-    }
-
     // Recover stale snapshots after missed IPC events or monitor/suspend changes.
     // Every event already refreshes, so this only matters while the desktop is idle.
     Timer {
-        interval: 30000
+        interval: root.eventsConnected ? 30000 : 1000
         running: true
         repeat: true
         onTriggered: {
@@ -148,15 +184,23 @@ Singleton {
 
     component HyprctlQuery: Process {
         property bool refreshPending: false
+        property int requestedRevision: 0
+        property int runningRevision: 0
 
         function refresh() {
+            requestedRevision++;
             if (running) refreshPending = true;
-            else running = true;
+            else {
+                runningRevision = requestedRevision;
+                running = true;
+            }
+            return requestedRevision;
         }
 
         onExited: {
             if (refreshPending) {
                 refreshPending = false;
+                runningRevision = requestedRevision;
                 running = true;
             }
         }
@@ -177,6 +221,7 @@ Singleton {
                 // suppressing that address until a later query confirms removal.
                 root.closedWindowAddresses = closed;
                 root.setWindowList(windows.filter(win => !closed[win.address]));
+                root.windowSnapshotRevision = getClients.runningRevision;
             }
         }
     }
@@ -188,6 +233,8 @@ Singleton {
             id: monitorsCollector
             onStreamFinished: {
                 root.monitors = JSON.parse(monitorsCollector.text);
+                root.focusedMonitorName = root.monitors.find(m => m.focused)?.name ?? "";
+                root.monitorSnapshotRevision = getMonitors.runningRevision;
             }
         }
     }
@@ -219,6 +266,7 @@ Singleton {
                 }
                 root.workspaceById = tempWorkspaceById;
                 root.workspaceIds = root.workspaces.map(ws => ws.id);
+                root.workspaceSnapshotRevision = getWorkspaces.runningRevision;
             }
         }
     }

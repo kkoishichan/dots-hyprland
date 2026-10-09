@@ -81,8 +81,12 @@ function M.describe()
 end
 
 local function dispatch(action)
-    local ok, message = hl.dispatch(action)
-    if ok == false then error(message or "column swipe dispatch failed") end
+    local result, message = hl.dispatch(action)
+    if type(result) == "table" and result.ok == false then
+        error(result.error or "column swipe dispatch failed")
+    elseif result == false then
+        error(message or "column swipe dispatch failed")
+    end
 end
 
 local function viewport_of(monitor)
@@ -113,45 +117,55 @@ local function snapshot(workspace)
     return columns
 end
 
--- layoutmsg move focuses the column at the center, whose follow-focus fit can pan
--- further; undo any such extra pan against a tiled reference window.
-local function position(window)
-    local ok, x = pcall(function() return window.at.x end)
-    return ok and x or nil
+-- Numeric layout moves also focus the column at the viewport center. That hard
+-- focus fits it back into view even with follow_focus disabled; a full-width
+-- column then resists every small delta. Keep focus until release, as native
+-- scroll_move does, without changing normal focus-follow or overriding window
+-- properties. The rule is enabled only for the lifetime of a horizontal swipe.
+local drag_focus_rule = nil
+local function set_drag_focus(blocked)
+    if blocked and not drag_focus_rule then
+        drag_focus_rule = hl.window_rule({ name = "scrolling-swipe-focus",
+            enabled = false, match = { float = false }, no_focus = true })
+    end
+    if drag_focus_rule and drag_focus_rule:is_enabled() ~= blocked then
+        drag_focus_rule:set_enabled(blocked)
+    end
 end
 
-local function move(shift, reference)
-    if math.abs(shift) < 0.5 then return end
-    local before = position(reference)
+local function move(shift)
+    if shift == 0 then return end
     dispatch(hl.dsp.layout(string.format("move %.3f", shift)))
-    local after = before and position(reference)
-    if not after then return end -- The reference closed mid-gesture.
-    local drift = before + shift - after
-    if math.abs(drift) > 1.5 then
-        dispatch(hl.dsp.layout(string.format("move %.3f", drift)))
-    end
 end
 
 local gesture = nil
 
 function M.start(event)
+    set_drag_focus(false) -- Clean up an interrupted gesture before starting another.
     gesture = nil
     local active = hl.get_active_window()
-    if active and active.fullscreen ~= 0 then return end
+    -- Win+D maximized columns can scroll; Win+F true fullscreen cannot.
+    if active and (active.fullscreen == 2 or active.floating and active.fullscreen ~= 0) then return end
     local workspace = hl.get_active_workspace()
     local monitor = hl.get_active_monitor()
     if not workspace or not monitor then return end
     local columns = snapshot(workspace)
     if #columns == 0 then return end
-    gesture = { workspace = workspace, monitor = monitor, reference = columns[1].window,
+    gesture = { workspace = workspace, monitor = monitor,
         original = active, velocity = 0, time = nil }
+    set_drag_focus(true)
 end
 
 function M.update(event)
     if not gesture or not event.delta then return end
     local delta = event.delta.x
     if delta == 0 then return end
-    move(delta, gesture.reference)
+    local ok, message = pcall(move, delta)
+    if not ok then
+        gesture = nil
+        set_drag_focus(false)
+        error(message)
+    end
     if gesture.time and event.time_ms > gesture.time then
         local instant = delta / ((event.time_ms - gesture.time) / 1000)
         gesture.velocity = gesture.velocity * (1 - SMOOTHING) + instant * SMOOTHING
@@ -175,7 +189,8 @@ local function settle(current)
 
     local column = columns[plan.index]
     local overshoot = plan.kind == "left" and -OVERSHOOT or plan.kind == "right" and OVERSHOOT or 0
-    move(plan.shift + overshoot, current.reference)
+    move(plan.shift + overshoot)
+    set_drag_focus(false)
     -- Exact alignment comes from the layout itself, never from rounded window boxes.
     dispatch(hl.dsp.focus({ window = column.window }))
     dispatch(hl.dsp.layout(plan.kind == "center" and "center" or "fit_into_view"))
@@ -188,7 +203,7 @@ local function settle(current)
         dispatch(hl.dsp.focus({ window = original }))
     end
     -- Layout moves emit no IPC event; refresh Quickshell's window positions.
-    hl.dispatch(hl.dsp.global("quickshell:layoutChanged")) -- Best effort: Quickshell may be restarting.
+    hl.dispatch(hl.dsp.event("ii:layoutChanged"))
 end
 
 function M.finish(event)
@@ -201,6 +216,7 @@ function M.finish(event)
     local no_warps = hl.get_config("cursor:no_warps")
     hl.config({ cursor = { no_warps = true } })
     local ok, message = pcall(settle, current)
+    set_drag_focus(false)
     hl.config({ cursor = { no_warps = no_warps } })
     if not ok then error(message) end
 end

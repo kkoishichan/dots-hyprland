@@ -7,11 +7,12 @@ local function scrolling(command)
     return hl.dsp.exec_cmd("qs -c $qsConfig ipc call scrolling " .. command)
 end
 -- Native layout operations emit no IPC event; tell Quickshell to refresh window order.
+-- A global shortcut here would replay this whole callback on key release.
 local function layout(command)
     local action = hl.dsp.layout(command)
     return function()
         hl.dispatch(action)
-        hl.dispatch(hl.dsp.global("quickshell:layoutChanged"))
+        hl.dispatch(hl.dsp.event("ii:layoutChanged"))
     end
 end
 

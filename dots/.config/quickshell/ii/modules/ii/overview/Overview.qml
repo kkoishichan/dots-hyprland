@@ -16,12 +16,17 @@ Scope {
     // Keep the overview after its first use so each card keeps its last captured frame;
     // columns scrolled off screen cannot be captured again until they return.
     property bool overviewLoaded: false
-    readonly property var focusedScreen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0]
+    property string openedMonitor: ""
+    // Keep the opening output throughout a drag; layout placement can briefly
+    // focus a window on another output while this surface stays open.
+    readonly property var focusedScreen: Quickshell.screens.find(s => s.name === openedMonitor)
+        ?? Quickshell.screens.find(s => s.name === ScrollingLayout.focusedName()) ?? Quickshell.screens[0]
     Component.onDestruction: restoreFullscreen()
+    OverviewDragController { id: overviewDrag }
 
     function prepareSurface() {
         if (savedFullscreen) return;
-        const name = Hyprland.focusedMonitor?.name;
+        const name = focusedScreen?.name;
         const window = ScrollingLayout.focusedWindow(name, ScrollingLayout.activeId(name));
         if (window?.fullscreen !== 2) return;
         savedFullscreen = { address: window.address, internal: window.fullscreen, client: window.fullscreenClient };
@@ -77,6 +82,8 @@ Scope {
                 // Selections close the overview before focusing; decide after that request.
                 Qt.callLater(overviewScope.restoreFullscreen);
             } else {
+                overviewScope.openedMonitor = GlobalStates.overviewMonitorRequest || ScrollingLayout.focusedName();
+                GlobalStates.overviewMonitorRequest = "";
                 overviewScope.overviewLoaded = true;
                 ScrollingLayout.focusRequest = "";
                 if (!overviewScope.dontAutoCancelSearch) searchWidget.cancelSearch();
@@ -95,7 +102,8 @@ Scope {
         color: "transparent"
         WlrLayershell.namespace: "quickshell:overview"
         WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+        WlrLayershell.keyboardFocus: !visible ? WlrKeyboardFocus.None
+            : ScrollingLayout.placingWindow ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
         anchors { top: true; bottom: true; left: true; right: true }
         onScreenChanged: { if (visible) Qt.callLater(overviewScope.focusSearch); }
 
@@ -131,11 +139,40 @@ Scope {
                 visible: panelWindow.searchingText === ""
                 sourceComponent: OverviewWidget {
                     screen: panelWindow.screen
+                    dragController: overviewDrag
                     onSearchRequested: text => overviewScope.openSearch(text)
                 }
             }
         }
         function setSearchingText(text) { searchWidget.setSearchingText(text); searchWidget.focusFirstItem(); }
+    }
+
+    // Other outputs become drop targets only during a card drag. The original
+    // surface keeps the pointer and keyboard grab; these surfaces only draw.
+    Variants {
+        model: Quickshell.screens
+        PanelWindow {
+            id: dropPanel
+            required property var modelData
+            screen: modelData
+            visible: GlobalStates.overviewOpen && overviewDrag.active
+                && modelData.name !== overviewScope.focusedScreen?.name
+            color: "transparent"
+            exclusiveZone: 0
+            WlrLayershell.namespace: "quickshell:overview-drop"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            anchors { top: true; bottom: true; left: true; right: true }
+            Loader {
+                active: overviewScope.overviewLoaded && (Config?.options.overview.enable ?? true)
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: searchWidget.height - 8
+                sourceComponent: OverviewWidget {
+                    screen: dropPanel.screen
+                    dragController: overviewDrag
+                }
+            }
+        }
     }
 
     function openSearch(text) {
@@ -165,13 +202,18 @@ Scope {
         function clipboardToggle() { overviewScope.toggleClipboard(); }
         function overview(): void { overviewScope.toggleOverview(); }
         function geometry(): string { return JSON.stringify(overviewLoader.item?.geometry() ?? []); }
+        function screens(): string {
+            return JSON.stringify(overviewDrag.views.filter(view => view.QsWindow.window?.visible)
+                .map(view => ({ monitor: view.monitorName, rows: view.geometry() })));
+        }
         function state(): string {
             return JSON.stringify({ open: GlobalStates.overviewOpen, search: panelWindow.searchingText !== "",
                 overview: GlobalStates.overviewOpen && overviewLoader.visible && overviewLoader.active,
                 monitor: overviewScope.focusedScreen?.name, focused: GlobalFocusGrab.hasActive(searchWidget),
                 searchFocused: GlobalFocusGrab.hasActive(searchWidget), dropWorkspace: overviewLoader.item?.dropWorkspace ?? -1,
                 selection: overviewLoader.item?.selectedAddress ?? "", workspace: overviewLoader.item?.selectedWorkspace ?? 0,
-                query: panelWindow.searchingText });
+                query: panelWindow.searchingText, dragging: overviewDrag.active,
+                targetMonitor: overviewDrag.targetView?.monitorName ?? "" });
         }
     }
     GlobalShortcut { name: "searchToggle"; description: "Toggles overview and search"; onPressed: overviewScope.toggleOverview() }

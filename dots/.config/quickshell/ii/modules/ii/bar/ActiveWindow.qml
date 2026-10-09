@@ -5,13 +5,12 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Hyprland
 
 Item {
     id: root
-    readonly property HyprlandMonitor monitor: Hyprland.monitorFor(root.QsWindow.window?.screen)
     readonly property string monitorName: root.QsWindow.window?.screen?.name ?? ""
-    readonly property var activeWindow: ScrollingLayout.focusedWindow(monitorName, monitor?.activeWorkspace?.id ?? 0)
+    readonly property int workspaceId: ScrollingLayout.activeId(monitorName)
+    readonly property var activeWindow: ScrollingLayout.focusedWindow(monitorName, workspaceId)
 
     implicitWidth: colLayout.implicitWidth
 
@@ -37,7 +36,7 @@ Item {
             font.pixelSize: Appearance.font.pixelSize.small
             color: Appearance.colors.colOnLayer0
             elide: Text.ElideRight
-            text: root.activeWindow?.title ?? `${Translation.tr("Workspace")} ${ScrollingLayout.position(root.monitorName, monitor?.activeWorkspace?.id ?? 0)}`
+            text: root.activeWindow?.title ?? `${Translation.tr("Workspace")} ${ScrollingLayout.position(root.monitorName, workspaceId)}`
         }
 
     }

@@ -2,6 +2,7 @@
 .config/Kvantum/kvantum.kvconfig
 .config/hypr/custom/column_layout.lua
 .config/hypr/custom/column_swipe.lua
+.config/hypr/custom/overview_drop.lua
 .config/hypr/custom/env.lua
 .config/hypr/custom/execs.lua
 .config/hypr/custom/feishu_toolbar_size.py
@@ -21,10 +22,12 @@
 .config/quickshell/ii/killDialog.qml
 .config/quickshell/ii/shell.qml
 .config/quickshell/ii/panelFamilies/IllogicalImpulseFamily.qml
+.config/quickshell/ii/panelFamilies/WaffleFamily.qml
 .config/quickshell/ii/modules/common/Config.qml
 .config/quickshell/ii/modules/common/functions/FingerprintFeedback.js
 .config/quickshell/ii/modules/common/models/WorkspaceModel.qml
 .config/quickshell/ii/modules/common/panels/lock/LockContext.qml
+.config/quickshell/ii/modules/common/panels/lock/DesktopLock.qml
 .config/quickshell/ii/modules/common/panels/lock/LockScreen.qml
 .config/quickshell/ii/modules/common/panels/lock/pam/fprintd.conf
 .config/quickshell/ii/modules/common/panels/lock/pam/password.conf
@@ -37,6 +40,7 @@
 .config/quickshell/ii/modules/ii/lock/Lock.qml
 .config/quickshell/ii/modules/ii/lock/LockSurface.qml
 .config/quickshell/ii/modules/ii/overview/Overview.qml
+.config/quickshell/ii/modules/ii/overview/OverviewDragController.qml
 .config/quickshell/ii/modules/ii/overview/OverviewWidget.qml
 .config/quickshell/ii/modules/ii/overview/OverviewWindow.qml
 .config/quickshell/ii/modules/ii/overview/ScrollingOverview.qml

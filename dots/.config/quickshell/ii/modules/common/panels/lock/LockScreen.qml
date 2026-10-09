@@ -14,6 +14,7 @@ Scope {
 
     required property Component lockSurface
     property alias context: lockContext
+    property bool initialized: false
     property Component sessionLockSurface: WlSessionLockSurface {
         id: sessionLockSurface
         color: "transparent"
@@ -113,6 +114,7 @@ Scope {
         function state(): string {
             return JSON.stringify({
                 locked: GlobalStates.screenLocked,
+                secure: lock.secure,
                 fingerprintsConfigured: lockContext.fingerprintsConfigured,
                 pamConfigDirectory: lockContext.pamConfigDirectory
             });
@@ -152,13 +154,21 @@ Scope {
     }
 
     function initIfReady() {
-        if (!Config.ready || !Persistent.ready) return;
-        if (Config.options.lock.launchOnStartup && Persistent.isNewHyprlandInstance) {
+        if (initialized || !Config.ready || !Persistent.ready) return;
+        initialized = true;
+        if (GlobalStates.screenLocked) {
+            // Reload transfers the protocol lock before this context exists.
+            // Restart authentication without preserving entered credentials.
+            lockContext.reset();
+            lockContext.tryFingerUnlock();
+            lockContext.shouldReFocus();
+        } else if (Config.options.lock.launchOnStartup && Persistent.isNewHyprlandInstance) {
             root.lock();
         } else {
             KeyringStorage.fetchKeyringData();
         }
     }
+    Component.onCompleted: Qt.callLater(root.initIfReady)
     Connections {
         target: Config
         function onReadyChanged() {

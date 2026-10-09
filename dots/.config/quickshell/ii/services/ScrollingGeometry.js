@@ -52,6 +52,94 @@ function extent(windows, monitor) {
     };
 }
 
+// Native cross-output moves preserve the column's fraction of the usable width.
+// Floating windows keep their pixel size; tiled previews fill the new output's height.
+function projectWindow(window, source, destination) {
+    if (!window || !source || !destination) return window;
+    if (window.floating) return Object.assign({}, window, {
+        localX: Math.max(0, Math.min(destination.width - window.layoutWidth, window.localX)),
+        localY: Math.max(0, Math.min(destination.height - window.layoutHeight, window.localY))
+    });
+    return Object.assign({}, window, {
+        layoutWidth: window.layoutWidth * destination.width / source.width,
+        layoutHeight: window.layoutHeight * destination.height / source.height,
+        localY: window.localY * destination.height / source.height
+    });
+}
+
+function insertion(windows, draggedAddress, x) {
+    const dragged = windows.find(w => w.address === draggedAddress);
+    const excluded = new Set([draggedAddress, ...(dragged?.grouped || [])]);
+    const columns = [];
+    windows.filter(w => !w.floating && !w.hidden && !excluded.has(w.address))
+        .sort((a, b) => a.localX - b.localX).forEach(w => {
+            const right = w.localX + w.layoutWidth;
+            const previous = columns[columns.length - 1];
+            if (previous && w.localX < previous.right) previous.right = Math.max(previous.right, right);
+            else columns.push({ left: w.localX, right, address: w.address });
+        });
+    for (let i = 0; i < columns.length; i++) {
+        const c = columns[i];
+        if (x < (c.left + c.right) / 2) {
+            return { anchor: c.address, before: true,
+                x: i ? (columns[i - 1].right + c.left) / 2 : c.left - 2 };
+        }
+    }
+    const last = columns[columns.length - 1];
+    return { anchor: last?.address || "", before: false, x: last ? last.right + 2 : 0 };
+}
+
+// Lay out a drag as if it had already happened, without changing native metadata.
+// The reserved window is also the released card's immediate animation target.
+function dragPreview(windows, workspaceId, dragged, target, viewportWidth) {
+    if (!dragged) return { windows, slot: null };
+    const excluded = new Set([dragged.address, ...(dragged.grouped || [])]);
+    const receiving = target?.workspace === workspaceId;
+    if (!receiving && !windows.some(w => excluded.has(w.address))) return { windows, slot: null };
+    const columns = [];
+    windows.filter(w => !w.floating).sort((a, b) => a.localX - b.localX).forEach(w => {
+        const right = w.localX + w.layoutWidth;
+        const previous = columns[columns.length - 1];
+        if (previous && w.localX < previous.right) {
+            previous.right = Math.max(previous.right, right);
+            previous.windows.push(w);
+        } else columns.push({ left: w.localX, right, windows: [w] });
+    });
+    const gaps = columns.slice(1).map((c, i) => Math.max(0, c.left - columns[i].right));
+    const gap = gaps.length ? Math.min(...gaps) : 4;
+    const remaining = columns.map(c => ({ left: c.left, windows: c.windows.filter(w => !excluded.has(w.address)) }))
+        .filter(c => c.windows.length).map(c => Object.assign(c, {
+            right: Math.max(...c.windows.map(w => w.localX + w.layoutWidth))
+        }));
+    let index = remaining.findIndex(c => c.windows.some(w => w.address === target?.anchor));
+    index = index < 0 ? remaining.length : index + (target.before ? 0 : 1);
+    let slot = null;
+    if (receiving && !dragged.floating) {
+        slot = Object.assign({}, dragged, { workspace: { id: workspaceId }, localY: dragged.localY });
+        remaining.splice(index, 0, { left: 0, right: dragged.layoutWidth, windows: [slot] });
+    }
+    // Keep the desktop's current origin. An empty destination centres its sole window.
+    let x = columns[0]?.left ?? (receiving ? (viewportWidth - dragged.layoutWidth) / 2 : 4);
+    const positions = {};
+    for (const column of remaining) {
+        for (const w of column.windows) {
+            positions[w.address] = Object.assign({}, w, { localX: x + w.localX - column.left });
+        }
+        if (column.windows[0] === slot) {
+            positions[slot.address].localX = x;
+            slot = positions[slot.address];
+        }
+        x += column.right - column.left + gap;
+    }
+    const result = windows.filter(w => !excluded.has(w.address)).map(w => positions[w.address] ?? w);
+    if (receiving) {
+        // Floating clients retain their native placement rather than becoming a tiled column.
+        if (dragged.floating) slot = Object.assign({}, dragged, { workspace: { id: workspaceId } });
+        result.push(slot);
+    }
+    return { windows: result, slot };
+}
+
 function overviewWidth(windows, viewportWidth, scale, padding) {
     // Use the monitor's logical width. A larger monitor gets a larger budget,
     // while fractional scaling and output rotation are handled by viewport().

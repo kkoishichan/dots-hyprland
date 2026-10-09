@@ -20,11 +20,15 @@ Singleton {
     property var connectedNames: []
     // The window most recently activated from the shell, e.g. an overview selection.
     property string focusRequest: ""
+    property bool placingWindow: false
+    property var windowInsertions: []
+    property var currentInsertion: null
+    property var awaitingInsertionSnapshots: []
+    signal windowInsertionFinished(string address, bool success)
     readonly property string statePath: FileUtils.trimFileProtocol(Directories.state + "/user/scrolling-workspaces.json")
-    readonly property var monitorSnapshots: HyprlandData.monitors.map(m => {
-        const live = Hyprland.monitors.values.find(v => v.name === m.name);
-        return Object.assign({}, m, { activeWorkspace: { id: live?.activeWorkspace?.id ?? m.activeWorkspace?.id } });
-    })
+    // Native JSON snapshots stay authoritative even if the module's event
+    // connection has dropped and its monitor objects are frozen.
+    readonly property var monitorSnapshots: HyprlandData.monitors
 
     function schedule() {
         if (!reconcileTimer.running) reconcileTimer.start();
@@ -73,12 +77,13 @@ Singleton {
     }
 
     function activeId(name) {
-        return Hyprland.monitors.values.find(m => m.name === name)?.activeWorkspace?.id
-            ?? monitorForName(name)?.activeWorkspace?.id ?? 0;
+        return monitorForName(name)?.activeWorkspace?.id
+            ?? Hyprland.monitors.values.find(m => m.name === name)?.activeWorkspace?.id ?? 0;
     }
 
     function focusedName() {
-        return Hyprland.focusedMonitor?.name || monitorSnapshots[0]?.name || "";
+        return HyprlandData.focusedMonitorName || monitorSnapshots.find(m => m.focused)?.name
+            || Hyprland.focusedMonitor?.name || monitorSnapshots[0]?.name || "";
     }
 
     function workspaceIds(name) {
@@ -153,6 +158,63 @@ Singleton {
         schedule();
     }
 
+    function insertWindow(name, id, address, anchor, before) {
+        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id) || !address) return;
+        protect(id);
+        const command = `require("custom.overview_drop").insert({ monitor = ${luaString(name)}, workspace = ${id}, address = ${luaString(address)}, anchor = ${luaString(anchor || "")}, before = ${before ? "true" : "false"} })`;
+        windowInsertions = windowInsertions.concat([{ command, address, monitor: name, workspace: id }]);
+        if (!placingWindow) {
+            placingWindow = true;
+            insertionDelay.restart();
+        }
+    }
+
+    function previewInsertion(name, id, address, targetName) {
+        return WorkspaceModel.previewMove(state, monitorSnapshots, HyprlandData.workspaces,
+            HyprlandData.windowList, pending, Date.now(), address, id, targetName ?? name).orders[name] ?? workspaceIds(name);
+    }
+
+    // The overview releases exclusive keyboard focus before a focus-based
+    // layout transaction. Let that layer-surface change reach the compositor.
+    Timer {
+        id: insertionDelay
+        interval: 50
+        onTriggered: {
+            if (GlobalStates.screenLocked || !root.windowInsertions.length) {
+                root.windowInsertions = [];
+                root.placingWindow = false;
+                return;
+            }
+            root.currentInsertion = root.windowInsertions[0];
+            insertionProcess.command = ["hyprctl", "dispatch", root.currentInsertion.command];
+            root.windowInsertions = root.windowInsertions.slice(1);
+            insertionProcess.running = true;
+        }
+    }
+    Process {
+        id: insertionProcess
+        stdout: StdioCollector { id: insertionOutput; onStreamFinished: {
+            if (text.trim() !== "ok") console.warn("[Scrolling] Window insertion:", text.trim());
+        } }
+        onExited: (exitCode, exitStatus) => {
+            // An earlier event query may still contain the old column order.
+            // Only hand the dragged card back after a fresh post-dispatch query.
+            if (root.currentInsertion) {
+                root.awaitingInsertionSnapshots = root.awaitingInsertionSnapshots.concat([{
+                    address: root.currentInsertion.address,
+                    monitor: root.currentInsertion.monitor,
+                    workspace: root.currentInsertion.workspace,
+                    success: exitCode === 0 && insertionOutput.text.trim() === "ok",
+                    revisions: HyprlandData.updateLayoutSnapshot()
+                }]);
+            }
+            root.currentInsertion = null;
+            root.schedule();
+            if (root.windowInsertions.length) insertionDelay.restart();
+            else root.placingWindow = false;
+        }
+    }
+
     function sendAt(position, follow) {
         const name = focusedName();
         normalize();
@@ -219,9 +281,29 @@ Singleton {
 
     Connections {
         target: HyprlandData
+        function onWindowSnapshotRevisionChanged() { root.finishInsertions(); }
+        function onMonitorSnapshotRevisionChanged() { root.finishInsertions(); }
+        function onWorkspaceSnapshotRevisionChanged() { root.finishInsertions(); }
         function onWindowListChanged() { root.schedule(); }
         function onWorkspacesChanged() { root.schedule(); }
         function onMonitorsChanged() { root.schedule(); }
+    }
+    function finishInsertions() {
+        const ready = item => item.revisions.windows <= HyprlandData.windowSnapshotRevision
+            && item.revisions.monitors <= HyprlandData.monitorSnapshotRevision
+            && item.revisions.workspaces <= HyprlandData.workspaceSnapshotRevision;
+        const completed = awaitingInsertionSnapshots.filter(ready);
+        if (!completed.length) return;
+        awaitingInsertionSnapshots = awaitingInsertionSnapshots.filter(item => !ready(item));
+        // The row order and geometry must be from the same completed transaction.
+        reconcileTimer.stop();
+        normalize();
+        for (const item of completed) {
+            const window = HyprlandData.windowByAddress[item.address];
+            const monitor = root.monitorForName(item.monitor);
+            const success = item.success && window?.workspace?.id === item.workspace && window?.monitor === monitor?.id;
+            Qt.callLater(() => root.windowInsertionFinished(item.address, success));
+        }
     }
     Connections {
         target: GlobalStates

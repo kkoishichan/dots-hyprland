@@ -7,8 +7,11 @@
 ////@ pragma Env QT_SCALE_FACTOR=1
 
 import "modules/common"
+import "modules/common/panels/lock"
 import "services"
 import "panelFamilies"
+import qs.modules.ii.lock
+import qs.modules.waffle.lock
 
 import QtQuick
 import QtQuick.Window
@@ -18,6 +21,9 @@ import Quickshell.Hyprland
 
 ShellRoot {
     id: root
+
+    // This must be available before settings and desktop panels finish loading.
+    DesktopLock { reloadableId: "desktopLock" }
 
     // Stuff for every panel family
     ReloadPopup {}

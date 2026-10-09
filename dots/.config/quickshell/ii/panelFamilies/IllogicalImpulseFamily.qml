@@ -40,7 +40,6 @@ Scope {
     StartupPanel { fileName: "background/Background.qml" }
     StartupPanel { extraCondition: !Config.options.bar.vertical; fileName: "bar/Bar.qml" }
     StartupPanel { extraCondition: Config.options.bar.vertical; fileName: "verticalBar/VerticalBar.qml" }
-    StartupPanel { fileName: "lock/Lock.qml" }
     StartupPanel { fileName: "notificationPopup/NotificationPopup.qml" }
     StartupPanel { fileName: "onScreenDisplay/OnScreenDisplay.qml" }
     StartupPanel { fileName: "overview/Overview.qml" }
