@@ -15,14 +15,8 @@ ContentPage {
             onSelected: value => { Config.options.desktopLayout = value; }
             options: [
                 { displayName: Translation.tr("Scrolling"), icon: "view_column", value: "scrolling" },
-                { displayName: Translation.tr("Original fork (dwindle)"), icon: "view_quilt", value: "classic" }
+                { displayName: Translation.tr("Tiled layout"), icon: "view_quilt", value: "classic" }
             ]
-        }
-        StyledText {
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            color: Appearance.colors.colSubtext
-            text: Translation.tr("Applies immediately: layout, workspace management, bar, overview, shortcuts and gestures. Existing windows are kept.")
         }
     }
 
