@@ -8,6 +8,25 @@ ContentPage {
     forceWidth: true
 
     ContentSection {
+        icon: "view_quilt"
+        title: Translation.tr("Desktop layout")
+        ConfigSelectionArray {
+            currentValue: Config.options.desktopLayout
+            onSelected: value => { Config.options.desktopLayout = value; }
+            options: [
+                { displayName: Translation.tr("Scrolling"), icon: "view_column", value: "scrolling" },
+                { displayName: Translation.tr("Original fork (dwindle)"), icon: "view_quilt", value: "classic" }
+            ]
+        }
+        StyledText {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            color: Appearance.colors.colSubtext
+            text: Translation.tr("Applies immediately: layout, workspace management, bar, overview, shortcuts and gestures. Existing windows are kept.")
+        }
+    }
+
+    ContentSection {
         icon: "keyboard"
         title: Translation.tr("Cheat sheet")
 
@@ -740,6 +759,7 @@ ContentPage {
             }
         }
         ConfigRow {
+            visible: Config.options.desktopLayout === "classic"
             uniform: true
             ConfigSpinBox {
                 icon: "splitscreen_bottom"
@@ -765,6 +785,7 @@ ContentPage {
             }
         }
         ConfigRow {
+            visible: Config.options.desktopLayout === "classic"
             uniform: true
             ConfigSelectionArray {
                 currentValue: Config.options.overview.orderRightLeft

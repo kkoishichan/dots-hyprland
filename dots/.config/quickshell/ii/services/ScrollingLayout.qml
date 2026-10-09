@@ -17,6 +17,9 @@ Singleton {
     property var state: ({ version: 1, orders: {}, homes: {}, nextId: 11 })
     property var pending: ({})
     property bool ready: false
+    // Read-only geometry helpers remain useful to the classic bar. Mutating
+    // dynamic workspace management must stop before a mode change is applied.
+    readonly property bool enabled: DesktopLayout.ready && DesktopLayout.scrolling
     property var connectedNames: []
     // The window most recently activated from the shell, e.g. an overview selection.
     property string focusRequest: ""
@@ -32,15 +35,15 @@ Singleton {
     readonly property var monitorSnapshots: HyprlandData.monitors
 
     function schedule() {
-        if (!reconcileTimer.running) reconcileTimer.start();
+        if (enabled && !reconcileTimer.running) reconcileTimer.start();
     }
 
     function save() {
-        if (ready) stateFile.setText(JSON.stringify(state));
+        if (enabled && ready) stateFile.setText(JSON.stringify(state));
     }
 
     function normalize() {
-        if (!ready || GlobalStates.screenLocked || monitorSnapshots.length === 0) return;
+        if (!enabled || !ready || GlobalStates.screenLocked || monitorSnapshots.length === 0) return;
         const names = monitorSnapshots.map(m => m.name);
         const returning = names.filter(name => !connectedNames.includes(name));
         const now = Date.now();
@@ -126,7 +129,7 @@ Singleton {
     }
 
     function focusWorkspace(name, id) {
-        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id)) return;
+        if (!enabled || GlobalStates.screenLocked || !WorkspaceModel.validId(id)) return;
         protect(id);
         Hyprland.dispatch(`hl.dsp.focus({ monitor = ${luaString(name)} })`);
         Hyprland.dispatch(`hl.dsp.focus({ workspace = ${id} })`);
@@ -150,7 +153,7 @@ Singleton {
     }
 
     function moveWindowTo(name, id, address, follow) {
-        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id)) return;
+        if (!enabled || GlobalStates.screenLocked || !WorkspaceModel.validId(id)) return;
         protect(id);
         const selector = address ? `, window = ${luaString("address:" + address)}` : "";
         // A native follow focuses the moved window; switching afterwards would
@@ -160,7 +163,7 @@ Singleton {
     }
 
     function insertWindow(name, id, address, anchor, before) {
-        if (GlobalStates.screenLocked || !WorkspaceModel.validId(id) || !address) return 0;
+        if (!enabled || GlobalStates.screenLocked || !WorkspaceModel.validId(id) || !address) return 0;
         protect(id);
         const command = `require("custom.overview_drop").insert({ monitor = ${luaString(name)}, workspace = ${id}, address = ${luaString(address)}, anchor = ${luaString(anchor || "")}, before = ${before ? "true" : "false"} })`;
         const requestId = ++nextInsertionId;
@@ -172,6 +175,7 @@ Singleton {
     }
 
     function startNextInsertion() {
+        if (!enabled) { placingWindow = false; return; }
         placingWindow = !!currentInsertion || insertionProcess.running || windowInsertions.length > 0;
         if (!currentInsertion && !insertionProcess.running && windowInsertions.length && !insertionDelay.running)
             insertionDelay.start();
@@ -223,7 +227,7 @@ Singleton {
         id: insertionDelay
         interval: 50
         onTriggered: {
-            if (GlobalStates.screenLocked || !root.windowInsertions.length) {
+            if (!root.enabled || GlobalStates.screenLocked || !root.windowInsertions.length) {
                 for (const item of root.windowInsertions.slice()) root.cancelInsertion(item.requestId, true);
                 root.startNextInsertion();
                 return;
@@ -281,6 +285,7 @@ Singleton {
     }
 
     function reorder(name, id, delta) {
+        if (!enabled) return;
         const ids = workspaceIds(name).slice();
         const from = ids.indexOf(id);
         if (from < 0) return;
@@ -296,6 +301,7 @@ Singleton {
     }
 
     function insertAbove(name, beforeId) {
+        if (!enabled) return;
         normalize();
         const ids = workspaceIds(name).slice();
         const used = new Set(Object.values(state.orders).reduce((all, ids) => all.concat(ids), []).concat(HyprlandData.workspaceIds));
@@ -314,13 +320,14 @@ Singleton {
     }
 
     function focusWindow(name, address) {
-        if (GlobalStates.screenLocked) return;
+        if (!enabled || GlobalStates.screenLocked) return;
         root.focusRequest = address;
         Hyprland.dispatch(`hl.dsp.focus({ monitor = ${luaString(name)} })`);
         Hyprland.dispatch(`hl.dsp.focus({ window = ${luaString("address:" + address)} })`);
     }
 
     function focusColumn(name, delta, workspaceId) {
+        if (!enabled) return;
         const id = workspaceId ?? activeId(name);
         const windows = windowsForWorkspace(name, id).filter(w => !w.floating);
         if (!windows.length) return;
@@ -361,6 +368,16 @@ Singleton {
         function onScreenLockedChanged() { root.schedule(); }
     }
     onMonitorSnapshotsChanged: schedule()
+    onEnabledChanged: {
+        if (enabled) { connectedNames = []; schedule(); return; }
+        reconcileTimer.stop();
+        pendingTimer.stop();
+        insertionDelay.stop();
+        const requests = windowInsertions.concat(awaitingInsertionSnapshots,
+            currentInsertion ? [currentInsertion] : []);
+        for (const item of requests) cancelInsertion(item.requestId, true);
+        pending = {};
+    }
 
     Timer { id: reconcileTimer; interval: 150; onTriggered: root.normalize() }
     Timer { id: pendingTimer; interval: 1900; onTriggered: root.normalize() }
@@ -392,6 +409,6 @@ Singleton {
         function sendStep(delta: int): void { root.sendRelative(delta, true); }
         function reorder(delta: int): void { root.reorder(root.focusedName(), root.activeId(root.focusedName()), delta); }
         function insert(): void { root.insertAbove(root.focusedName(), root.activeId(root.focusedName())); }
-        function status(): string { return JSON.stringify({ state: root.state, focusedMonitor: root.focusedName(), activeId: root.activeId(root.focusedName()) }); }
+        function status(): string { return JSON.stringify({ enabled: root.enabled, state: root.state, focusedMonitor: root.focusedName(), activeId: root.activeId(root.focusedName()) }); }
     }
 }

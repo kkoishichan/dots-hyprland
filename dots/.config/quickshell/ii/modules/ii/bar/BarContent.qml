@@ -131,10 +131,14 @@ Item { // Bar content region
         BarGroup {
             id: middleCenterGroup
             anchors.verticalCenter: parent.verticalCenter
-            padding: 4
+            padding: workspaceLoader.item?.widgetPadding ?? 4
 
-            WindowRibbon {
+            Loader {
+                id: workspaceLoader
                 Layout.fillHeight: true
+                sourceComponent: DesktopLayout.scrolling ? ribbonComponent : workspacesComponent
+                Component { id: ribbonComponent; WindowRibbon {} }
+                Component { id: workspacesComponent; Workspaces {} }
             }
         }
 

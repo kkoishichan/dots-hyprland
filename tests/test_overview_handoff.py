@@ -31,7 +31,7 @@ class OverviewHandoffTests(unittest.TestCase):
 
             for module, names in {
                 "": ["GlobalStates"],
-                "services": ["HyprlandData", "ScrollingLayout"],
+                "services": ["HyprlandData", "ScrollingLayout", "DesktopLayout"],
                 "modules/common": ["Appearance", "Config", "Directories"],
                 "modules/common/functions": ["ColorUtils", "FileUtils"],
             }.items():
@@ -52,6 +52,10 @@ QtObject {
     property var animation: ({elementMoveFast: {duration: 200, type: Easing.OutCubic,
         bezierCurve: [], colorAnimation: colorMotion}})
 }
+""")
+            write("services/DesktopLayout.qml", """pragma Singleton
+import QtQml
+QtObject { property bool ready: true; property bool scrolling: true }
 """)
             write("modules/common/Config.qml", """pragma Singleton
 import QtQml
@@ -411,6 +415,15 @@ Scope {
     }
     IpcHandler {
         target: "test"
+        function setScrolling(value: bool): void { DesktopLayout.scrolling = value; }
+        function dynamicOps(): int {
+            ScrollingLayout.focusRelative(1);
+            ScrollingLayout.sendRelative(1, true);
+            ScrollingLayout.insertAbove("mock", 2);
+            ScrollingLayout.reorder("mock", 2, -1);
+            ScrollingLayout.focusWindow("mock", "0xa");
+            return ScrollingLayout.insertWindow("mock", 11, "0xa", "", false);
+        }
         function focused(): string { return HyprlandData.focusedMonitorName; }
         function complete(requestId: int, address: string, success: bool): void {
             ScrollingLayout.windowInsertionFinished(requestId, address, success);
@@ -430,6 +443,7 @@ Scope {
             return JSON.stringify({x: point?.x, y: point?.y, width: card?.width, height: card?.height,
                 token: card?.token, shown: card?.shown, visible: card?.visible, dragging: card?.dragging,
                 dropping: card?.dropping, requestId: card?.insertionRequestId,
+                enabled: ScrollingLayout.enabled ?? true, workspaceState: ScrollingLayout.state ?? null,
                 placing: ScrollingLayout.placingWindow ?? false, current: ScrollingLayout.currentInsertion ?? null,
                 awaiting: ScrollingLayout.awaitingInsertionSnapshots ?? [], queue: ScrollingLayout.windowInsertions ?? [],
                 focused: HyprlandData.focusedMonitorName ?? "", monitorRevision: HyprlandData.monitorSnapshotRevision ?? 0,

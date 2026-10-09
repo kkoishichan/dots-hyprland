@@ -2,6 +2,7 @@
 .config/Kvantum/kvantum.kvconfig
 .config/hypr/custom/column_layout.lua
 .config/hypr/custom/column_swipe.lua
+.config/hypr/custom/desktop_mode.lua
 .config/hypr/custom/overview_drop.lua
 .config/hypr/custom/env.lua
 .config/hypr/custom/execs.lua
@@ -40,6 +41,8 @@
 .config/quickshell/ii/modules/ii/lock/Lock.qml
 .config/quickshell/ii/modules/ii/lock/LockSurface.qml
 .config/quickshell/ii/modules/ii/overview/Overview.qml
+.config/quickshell/ii/modules/ii/overview/ClassicOverviewWidget.qml
+.config/quickshell/ii/modules/ii/overview/ClassicOverviewWindow.qml
 .config/quickshell/ii/modules/ii/overview/OverviewDragController.qml
 .config/quickshell/ii/modules/ii/overview/OverviewWidget.qml
 .config/quickshell/ii/modules/ii/overview/OverviewWindow.qml
@@ -50,6 +53,9 @@
 .config/quickshell/ii/modules/ii/sidebarLeft/SidebarLeft.qml
 .config/quickshell/ii/modules/waffle/polkit/WPolkitContent.qml
 .config/quickshell/ii/services/AppSearch.qml
+.config/quickshell/ii/services/DesktopLayout.qml
+.config/quickshell/ii/modules/settings/InterfaceConfig.qml
+.config/quickshell/ii/modules/settings/BarConfig.qml
 .config/quickshell/ii/services/ConflictKiller.qml
 .config/quickshell/ii/services/HyprlandData.qml
 .config/quickshell/ii/services/LauncherSearch.qml

@@ -29,6 +29,8 @@ ShellRoot {
     ReloadPopup {}
 
     Component.onCompleted: {
+        DesktopLayout.load()
+        ScrollingLayout.schedule() // Keep mode-gated workspace IPC available in either panel family.
         MaterialThemeLoader.reapplyTheme()
         Hyprsunset.load()
         FirstRunExperience.load()

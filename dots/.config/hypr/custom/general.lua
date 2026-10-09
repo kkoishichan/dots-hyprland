@@ -1,3 +1,5 @@
+local desktop_mode = require("custom.desktop_mode")
+
 hl.device({
 	name = "tpps/2-elan-trackpoint",
 	accel_profile = "flat",
@@ -25,12 +27,17 @@ hl.config({
 		border_size = active_border_enabled and active_border_size or 0,
 		gaps_in = 2,
 		-- Scrolling fits logical columns; larger horizontal outer gaps expose offscreen neighbours.
-		gaps_out = { top = 4, right = 2, bottom = 4, left = 2 },
+		gaps_out = desktop_mode.scrolling and { top = 4, right = 2, bottom = 4, left = 2 } or 4,
 		col = {
 			active_border = "rgba(" .. active_border_color .. "FF)",
 		},
 	},
 })
+if not desktop_mode.scrolling then
+    hl.config({ general = { layout = "dwindle" } })
+    return -- Keep the base fork's gestures and workspace animations.
+end
+
 -- Native horizontal scrolling. Quickshell supplies the dynamic vertical workspace sequence.
 hl.config({
     general = { layout = "scrolling" },

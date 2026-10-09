@@ -36,7 +36,7 @@ Item {
             font.pixelSize: Appearance.font.pixelSize.small
             color: Appearance.colors.colOnLayer0
             elide: Text.ElideRight
-            text: root.activeWindow?.title ?? `${Translation.tr("Workspace")} ${ScrollingLayout.position(root.monitorName, workspaceId)}`
+            text: root.activeWindow?.title ?? `${Translation.tr("Workspace")} ${DesktopLayout.scrolling ? ScrollingLayout.position(root.monitorName, workspaceId) : workspaceId}`
         }
 
     }

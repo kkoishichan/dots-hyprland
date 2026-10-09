@@ -92,6 +92,30 @@ class ScrollingRecoveryTests(unittest.TestCase):
             self.assert_idle(status())
         self.exercise(probe)
 
+    def test_classic_mode_cancels_pending_drops_and_disables_dynamic_commands(self):
+        def probe(base, rpc, status, events):
+            (base / "insertion-mode").write_text("hang")
+            self.drag_to(rpc, status, 11)
+            self.wait_for(lambda: status()["current"] is not None)
+            rpc("setScrolling", "false")
+            self.wait_for(lambda: not status()["placing"] and not status()["dropping"])
+            self.assert_idle(status())
+            original = status()
+            self.assertFalse(original["enabled"])
+            native = (base / "native.json").read_text()
+            saved = {path: path.read_bytes() for path in base.rglob("scrolling-workspaces.json")}
+            self.assertEqual(rpc("dynamicOps"), "0")
+            time.sleep(0.3)
+            self.assertEqual(status()["workspaceState"], original["workspaceState"])
+            self.assertEqual((base / "native.json").read_text(), native)
+            self.assertEqual({path: path.read_bytes() for path in saved}, saved)
+            rpc("setScrolling", "true")
+            self.wait_for(lambda: status()["enabled"])
+            self.drag_to(rpc, status, 11)
+            self.wait_for(lambda: status()["nativeWorkspace"] == 11 and not status()["dropping"])
+            self.assert_idle(status())
+        self.exercise(probe)
+
     def test_old_monitor_query_cannot_overwrite_new_focus_event(self):
         def probe(base, rpc, status, events):
             state_file = base / "native.json"

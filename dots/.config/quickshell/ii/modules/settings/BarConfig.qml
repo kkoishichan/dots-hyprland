@@ -254,6 +254,7 @@ ContentPage {
     ContentSection {
         icon: "workspaces"
         title: Translation.tr("Workspaces")
+        visible: Config.options.desktopLayout === "classic" || Config.options.bar.vertical
 
         ConfigSwitch {
             buttonIcon: "counter_1"

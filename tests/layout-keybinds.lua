@@ -33,6 +33,7 @@ hl = {
     end,
 }
 package.path = "dots/.config/hypr/?.lua;" .. package.path
+package.loaded["custom.desktop_mode"] = { scrolling = true }
 dofile("dots/.config/hypr/custom/keybinds.lua")
 
 local function tap(key)

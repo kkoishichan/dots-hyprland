@@ -730,5 +730,9 @@
   "Move workspace up": "上移工作区",
   "Move workspace down": "下移工作区",
   "New workspace": "新工作区",
-  "Click or drop a window here": "点击进入，或将窗口拖到这里"
+  "Click or drop a window here": "点击进入，或将窗口拖到这里",
+    "Desktop layout": "桌面布局",
+    "Scrolling": "滚动布局",
+    "Original fork (dwindle)": "原版布局（dwindle）",
+    "Applies immediately: layout, workspace management, bar, overview, shortcuts and gestures. Existing windows are kept.": "立即切换布局、工作区管理、条栏、概览、快捷键和手势，保留已有窗口。"
 }

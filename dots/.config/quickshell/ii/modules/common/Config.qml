@@ -12,6 +12,8 @@ Singleton {
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
+    signal saved()
+    signal loaded()
 
     function setNestedValue(nestedKey, value) {
         let keys = nestedKey.split(".");
@@ -68,7 +70,8 @@ Singleton {
         blockWrites: root.blockWrites
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
-        onLoaded: root.ready = true
+        onSaved: root.saved()
+        onLoaded: { root.ready = true; root.loaded(); }
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
                 writeAdapter();
@@ -79,6 +82,7 @@ Singleton {
             id: configOptionsJsonAdapter
 
             property string panelFamily: "ii" // "ii", "waffle"
+            property string desktopLayout: "scrolling" // "scrolling", "classic"
 
             property JsonObject policies: JsonObject {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local

@@ -25,6 +25,7 @@ Scope {
     OverviewDragController { id: overviewDrag }
 
     function prepareSurface() {
+        if (!DesktopLayout.scrolling) return;
         if (savedFullscreen) return;
         const name = focusedScreen?.name;
         const window = ScrollingLayout.focusedWindow(name, ScrollingLayout.activeId(name));
@@ -129,7 +130,7 @@ Scope {
             SearchWidget {
                 id: searchWidget
                 anchors.horizontalCenter: parent.horizontalCenter
-                overviewNavigation: overviewLoader.visible ? overviewLoader.item : null
+                overviewNavigation: DesktopLayout.scrolling && overviewLoader.visible ? overviewLoader.item : null
                 Synchronizer on searchingText { property alias source: panelWindow.searchingText }
             }
             Loader {
@@ -137,11 +138,13 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 active: (GlobalStates.overviewOpen || overviewScope.overviewLoaded) && (Config?.options.overview.enable ?? true)
                 visible: panelWindow.searchingText === ""
-                sourceComponent: OverviewWidget {
+                sourceComponent: DesktopLayout.scrolling ? scrollingComponent : classicComponent
+                Component { id: scrollingComponent; OverviewWidget {
                     screen: panelWindow.screen
                     dragController: overviewDrag
                     onSearchRequested: text => overviewScope.openSearch(text)
-                }
+                } }
+                Component { id: classicComponent; ClassicOverviewWidget { screen: panelWindow.screen } }
             }
         }
         function setSearchingText(text) { searchWidget.setSearchingText(text); searchWidget.focusFirstItem(); }
@@ -155,7 +158,7 @@ Scope {
             id: dropPanel
             required property var modelData
             screen: modelData
-            visible: GlobalStates.overviewOpen && overviewDrag.active
+            visible: DesktopLayout.scrolling && GlobalStates.overviewOpen && overviewDrag.active
                 && modelData.name !== overviewScope.focusedScreen?.name
             color: "transparent"
             exclusiveZone: 0
@@ -164,7 +167,7 @@ Scope {
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             anchors { top: true; bottom: true; left: true; right: true }
             Loader {
-                active: overviewScope.overviewLoaded && (Config?.options.overview.enable ?? true)
+                active: DesktopLayout.scrolling && overviewScope.overviewLoaded && (Config?.options.overview.enable ?? true)
                 anchors.horizontalCenter: parent.horizontalCenter
                 y: searchWidget.height - 8
                 sourceComponent: OverviewWidget {
@@ -209,7 +212,7 @@ Scope {
         function state(): string {
             return JSON.stringify({ open: GlobalStates.overviewOpen, search: panelWindow.searchingText !== "",
                 overview: GlobalStates.overviewOpen && overviewLoader.visible && overviewLoader.active,
-                monitor: overviewScope.focusedScreen?.name, focused: GlobalFocusGrab.hasActive(searchWidget),
+                monitor: overviewScope.focusedScreen?.name, mode: DesktopLayout.scrolling ? "scrolling" : "classic", focused: GlobalFocusGrab.hasActive(searchWidget),
                 searchFocused: GlobalFocusGrab.hasActive(searchWidget), dropWorkspace: overviewLoader.item?.dropWorkspace ?? -1,
                 selection: overviewLoader.item?.selectedAddress ?? "", workspace: overviewLoader.item?.selectedWorkspace ?? 0,
                 query: panelWindow.searchingText, dragging: overviewDrag.active,

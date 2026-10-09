@@ -22,72 +22,85 @@ end
 
 hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), { description = "Edit user keybinds" })
 
-for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
-    local direction = ({ "l", "r", "u", "d" })[i]
-    replace("SUPER + " .. key, hl.dsp.layout("focus " .. direction), "Window: Focus " .. key)
-end
-replace("SUPER + BracketLeft", hl.dsp.layout("focus l"), "Column: Focus previous")
-replace("SUPER + BracketRight", hl.dsp.layout("focus r"), "Column: Focus next")
-replace("SUPER + SHIFT + Left", layout("swapcol l"), "Column: Move left")
-replace("SUPER + SHIFT + Right", layout("swapcol r"), "Column: Move right")
-replace("SUPER + ALT + Left", layout("consume_or_expel prev"), "Column: Merge or split toward left")
-replace("SUPER + ALT + Right", layout("consume_or_expel next"), "Column: Merge or split toward right")
-replace("SUPER + Semicolon", layout("colresize -conf"), "Column: Previous width", true)
-replace("SUPER + Apostrophe", layout("colresize +conf"), "Column: Next width", true)
-local column_layout = require("custom.column_layout")
-replace("SUPER + R", column_layout.cycle, "Columns: Cycle paired and triple layouts")
-replace("SUPER + CTRL + C", layout("center"), "Column: Center")
-replace("SUPER + Space", hl.dsp.global("quickshell:searchToggle"), "Shell: Search")
-hl.unbind("SUPER + Tab")
-
--- Disable inherited numbered-workspace shortcuts on the main row and keypad.
-for i = 1, 10 do
-    local digit = tostring(i % 10)
-    local code = ({ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 })[i]
-    local keypad = ({ 87, 88, 89, 83, 84, 85, 79, 80, 81, 90 })[i]
-    for _, key in ipairs({ digit, "code:" .. code, "code:" .. keypad }) do
-        hl.unbind("SUPER + " .. key)
-        hl.unbind("SUPER + ALT + " .. key)
+if require("custom.desktop_mode").scrolling then
+    for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
+        local direction = ({ "l", "r", "u", "d" })[i]
+        replace("SUPER + " .. key, hl.dsp.layout("focus " .. direction), "Window: Focus " .. key)
     end
-end
+    replace("SUPER + BracketLeft", hl.dsp.layout("focus l"), "Column: Focus previous")
+    replace("SUPER + BracketRight", hl.dsp.layout("focus r"), "Column: Focus next")
+    replace("SUPER + SHIFT + Left", layout("swapcol l"), "Column: Move left")
+    replace("SUPER + SHIFT + Right", layout("swapcol r"), "Column: Move right")
+    replace("SUPER + ALT + Left", layout("consume_or_expel prev"), "Column: Merge or split toward left")
+    replace("SUPER + ALT + Right", layout("consume_or_expel next"), "Column: Merge or split toward right")
+    replace("SUPER + Semicolon", layout("colresize -conf"), "Column: Previous width", true)
+    replace("SUPER + Apostrophe", layout("colresize +conf"), "Column: Next width", true)
+    local column_layout = require("custom.column_layout")
+    replace("SUPER + R", column_layout.cycle, "Columns: Cycle paired and triple layouts")
+    replace("SUPER + CTRL + C", layout("center"), "Column: Center")
+    replace("SUPER + Space", hl.dsp.global("quickshell:searchToggle"), "Shell: Search")
+    hl.unbind("SUPER + Tab")
 
-for i, dir in ipairs({ "Up", "Down" }) do
-    local delta = i == 1 and -1 or 1
-    replace("CTRL + SUPER + " .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
-    replace("CTRL + SUPER + SHIFT + " .. dir, scrolling("reorder " .. delta), "Workspace: Move " .. dir)
-    replace("SUPER + Page_" .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
-    replace("CTRL + SUPER + Page_" .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
-    replace("SUPER + SHIFT + Page_" .. dir, scrolling("sendStep " .. delta), "Window: Move to workspace " .. dir)
-    replace("SUPER + ALT + Page_" .. dir, scrolling("sendStep " .. delta), "Window: Move to workspace " .. dir)
-end
-for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
-    local direction = ({ "l", "r", "u", "d" })[i]
-    replace("CTRL + SUPER + ALT + " .. key, hl.dsp.focus({ monitor = direction }), "Monitor: Focus " .. key)
-    replace("SUPER + ALT + SHIFT + " .. key, hl.dsp.window.move({ monitor = direction, follow = true }), "Window: Move to monitor " .. key)
-end
-replace("CTRL + SUPER + Insert", scrolling("insert"), "Workspace: Insert above current")
+    -- Disable inherited numbered-workspace shortcuts on the main row and keypad.
+    for i = 1, 10 do
+        local digit = tostring(i % 10)
+        local code = ({ 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 })[i]
+        local keypad = ({ 87, 88, 89, 83, 84, 85, 79, 80, 81, 90 })[i]
+        for _, key in ipairs({ digit, "code:" .. code, "code:" .. keypad }) do
+            hl.unbind("SUPER + " .. key)
+            hl.unbind("SUPER + ALT + " .. key)
+        end
+    end
 
-for i, key in ipairs({ "Left", "Right", "BracketLeft", "BracketRight", "XF86Back", "XF86Forward" }) do
-    local delta = i % 2 == 1 and -1 or 1
-    replace("CTRL + SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))
-end
--- These eight browser-key combinations predate the scrolling conversion.
-for i, key in ipairs({ "XF86Back", "XF86Forward" }) do
-    local delta = i == 1 and -1 or 1
-    replace("SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))
-    replace("SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
-    replace("SUPER + ALT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
-end
-for i, key in ipairs({ "Left", "Right" }) do
-    local delta = i == 1 and -1 or 1
-    replace("CTRL + SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
-end
-for i, key in ipairs({ "mouse_up", "mouse_down" }) do
-    local delta = i == 1 and -1 or 1
-    replace("SUPER + " .. key, hl.dsp.layout("focus " .. (delta < 0 and "l" or "r")), "Column: Scroll focus")
-    replace("CTRL + SUPER + " .. key, scrolling("step " .. delta), "Workspace: Scroll focus")
-    replace("SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
-    replace("SUPER + ALT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+    for i, dir in ipairs({ "Up", "Down" }) do
+        local delta = i == 1 and -1 or 1
+        replace("CTRL + SUPER + " .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
+        replace("CTRL + SUPER + SHIFT + " .. dir, scrolling("reorder " .. delta), "Workspace: Move " .. dir)
+        replace("SUPER + Page_" .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
+        replace("CTRL + SUPER + Page_" .. dir, scrolling("step " .. delta), "Workspace: Focus " .. dir)
+        replace("SUPER + SHIFT + Page_" .. dir, scrolling("sendStep " .. delta), "Window: Move to workspace " .. dir)
+        replace("SUPER + ALT + Page_" .. dir, scrolling("sendStep " .. delta), "Window: Move to workspace " .. dir)
+    end
+    for i, key in ipairs({ "Left", "Right", "Up", "Down" }) do
+        local direction = ({ "l", "r", "u", "d" })[i]
+        replace("CTRL + SUPER + ALT + " .. key, hl.dsp.focus({ monitor = direction }), "Monitor: Focus " .. key)
+        replace("SUPER + ALT + SHIFT + " .. key, hl.dsp.window.move({ monitor = direction, follow = true }), "Window: Move to monitor " .. key)
+    end
+    replace("CTRL + SUPER + Insert", scrolling("insert"), "Workspace: Insert above current")
+
+    for i, key in ipairs({ "Left", "Right", "BracketLeft", "BracketRight", "XF86Back", "XF86Forward" }) do
+        local delta = i % 2 == 1 and -1 or 1
+        replace("CTRL + SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))
+    end
+    -- These eight browser-key combinations predate the scrolling conversion.
+    for i, key in ipairs({ "XF86Back", "XF86Forward" }) do
+        local delta = i == 1 and -1 or 1
+        replace("SUPER + " .. key, scrolling("step " .. delta), "Workspace: Focus " .. (delta < 0 and "previous" or "next"))
+        replace("SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+        replace("SUPER + ALT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+    end
+    for i, key in ipairs({ "Left", "Right" }) do
+        local delta = i == 1 and -1 or 1
+        replace("CTRL + SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+    end
+    for i, key in ipairs({ "mouse_up", "mouse_down" }) do
+        local delta = i == 1 and -1 or 1
+        replace("SUPER + " .. key, hl.dsp.layout("focus " .. (delta < 0 and "l" or "r")), "Column: Scroll focus")
+        replace("CTRL + SUPER + " .. key, scrolling("step " .. delta), "Workspace: Scroll focus")
+        replace("SUPER + SHIFT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+        replace("SUPER + ALT + " .. key, scrolling("sendStep " .. delta), "Window: Move to adjacent workspace")
+    end
+
+else
+    -- Retain the user's browser keys with their original native workspace actions.
+    function workspace_in_group(i) return i end
+    for i, key in ipairs({ "XF86Back", "XF86Forward" }) do
+        local workspace = i == 1 and "r-1" or "r+1"
+        replace("SUPER + " .. key, hl.dsp.focus({ workspace = workspace }), "Workspace: Focus adjacent")
+        replace("CTRL + SUPER + " .. key, hl.dsp.focus({ workspace = workspace }), "Workspace: Focus adjacent")
+        replace("SUPER + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace }), "Window: Move to adjacent workspace")
+        replace("SUPER + ALT + " .. key, hl.dsp.window.move({ workspace = workspace }), "Window: Move to adjacent workspace")
+    end
 end
 
 -- Pause fingerprint authentication before requesting sleep, so fprintd cannot
